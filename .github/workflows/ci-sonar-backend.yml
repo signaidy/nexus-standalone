@@ -68,7 +68,7 @@ jobs:
     name: Email Result
     needs: sonar-backend
     runs-on: ubuntu-latest
-    if: ${{ always() && github.event_name == 'pull_request' && needs.sonar-backend.outputs.analyzed == 'true' }}
+    if: ${{ always() && github.event_name == 'pull_request' }}
     steps:
       - name: Compose outcome
         id: outcome
