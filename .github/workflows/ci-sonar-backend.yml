@@ -34,6 +34,13 @@ jobs:
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Make gradlew executable (por si acaso)
+        run: chmod +x gradlew
+        working-directory: backend
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v2
+
       # Backend-only: run tests + coverage + Sonar; wait for the quality gate
       - name: Test + Jacoco + Sonar (wait for Quality Gate)
         run: |
