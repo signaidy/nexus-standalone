@@ -14,6 +14,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 
 @Service
 public class JwtService {
@@ -48,10 +50,14 @@ public class JwtService {
      * @return 'boolean'
      */
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String userName = extractUserName(token);
-        return (userName.equals(userDetails.getUsername())) && !isTokenExpired(token);
-    }
-  
+        try {
+            final String userName = extractUserName(token); // may throw if expired/malformed/etc.
+            return userName.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
+            // expired, malformed, bad signature, unsupported, empty, etc.
+            return false;
+        }
+    }  
     
     /** 
      * @param token
