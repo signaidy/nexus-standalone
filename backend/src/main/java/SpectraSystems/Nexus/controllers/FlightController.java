@@ -258,7 +258,7 @@ public class FlightController {
                     reservationRepository.save(reservation);
                     sendCancellationEmail(reservation.getUser(), "reservation");
                 }
-            }}
+            }
             return new ResponseEntity<>(flights, HttpStatus.OK);
         } else {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
