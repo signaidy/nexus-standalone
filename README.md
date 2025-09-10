@@ -171,6 +171,31 @@ kubectl -n dev  patch svc backend-svc  -p '{"spec":{"type":"LoadBalancer"}}'   2
 # ...repeat per namespace as needed
 ```
 
+```powershell
+function Restore-Replicas($ns) {
+  $deps = (Get-Content "$ns-deploys.json" | ConvertFrom-Json).items
+  foreach ($d in $deps) {
+    $name = $d.metadata.name
+    $rep  = [int]$d.spec.replicas
+    if ($rep -gt 0) { kubectl -n $ns scale deploy $name --replicas $rep }
+  }
+
+  $sts = (Get-Content "$ns-sts.json" | ConvertFrom-Json).items
+  foreach ($s in $sts) {
+    $name = $s.metadata.name
+    $rep  = [int]$s.spec.replicas
+    if ($rep -gt 0) { kubectl -n $ns scale statefulset $name --replicas $rep }
+  }
+
+  # Re-enable CronJobs
+  kubectl -n $ns patch cronjob --all --type merge -p '{\"spec\":{\"suspend\":false}}' 2>$null
+}
+
+Restore-Replicas dev
+Restore-Replicas uat
+Restore-Replicas main
+```
+
 ### Quick checks
 
 ```bash

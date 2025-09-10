@@ -1,4 +1,4 @@
-import { PUBLIC_BACKEND_URL } from '$env/static/public';
+// import { PUBLIC_BACKEND_URL } from '$env/static/public';
 
 export function load({ locals }) {
   // async function getCities() {

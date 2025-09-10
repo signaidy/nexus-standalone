@@ -1,10 +1,11 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { PUBLIC_BACKEND_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export function load({ locals, url }) {
+  const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
   async function getOneWayFlights() {
     const response = await fetch(
-      `${PUBLIC_BACKEND_URL}/flights/avianca/one-way-flights?${url.searchParams.toString()}`,
+      `${base}/flights/avianca/one-way-flights?${url.searchParams.toString()}`,
       {
         method: "GET"
       }
@@ -16,7 +17,7 @@ export function load({ locals, url }) {
 
   async function getRoundTripFlights() {
     const response = await fetch(
-      `${PUBLIC_BACKEND_URL}/flights/avianca/round-trip-flights?${url.searchParams.toString()}`,
+      `${base}/flights/avianca/round-trip-flights?${url.searchParams.toString()}`,
       {
         method: "GET"
       }
@@ -27,7 +28,7 @@ export function load({ locals, url }) {
   }
 
   async function getCities() {
-    const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/avianca/cities`, {
+    const response = await fetch(`${base}/flights/avianca/cities`, {
       method: "GET",
     });
 
@@ -54,6 +55,7 @@ export function load({ locals, url }) {
 
 export const actions = {
   createCommentary: async ({ request, cookies, locals }) => {
+    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
     const data = await request.formData();
     const token = cookies.get('token');
     const user = locals.user.firstName;
@@ -63,7 +65,7 @@ export const actions = {
     }
     console.log(parentId)
     try {
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/comments`, {
+      const response = await fetch(`${base}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -98,9 +100,10 @@ export const actions = {
     }
   },
   createRating: async ({ request }) => {
+    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
     const data = await request.formData();
     try {
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/create-rating`, {
+      const response = await fetch(`${base}/flights/create-rating`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

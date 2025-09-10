@@ -1,9 +1,10 @@
 <script>
   import { onMount } from "svelte";
-  import { PUBLIC_BACKEND_URL } from '$env/static/public';
+  import { env } from '$env/dynamic/public';
 
   onMount(async () => {
-    const response = await fetch(`${PUBLIC_BACKEND_URL}/providers`);
+    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const response = await fetch(`${base}/providers`);
     const data = await response.json();
     console.log(data); 
   });
