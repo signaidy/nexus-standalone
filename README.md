@@ -1,5 +1,4 @@
 
-````markdown
 # Nexus (Spectra)
 
 Monorepo with:
@@ -202,9 +201,3 @@ kubectl -n db get pods   # Oracle
   and restrict who can push so only **you** can merge.
 
 ---
-
-```
-
-Want this split into `docs/ops.md` with short links from the README instead? I can refactor it that way too.
-::contentReference[oaicite:0]{index=0}
-```
