@@ -6,7 +6,6 @@ trigger: { branch: [dev], event: [push] }
 service_account_name: drone-pipeline
 
 steps:
-  # 1) Build backend image with Kaniko
   - name: build-backend
     image: gcr.io/kaniko-project/executor:latest
     environment:
@@ -17,7 +16,6 @@ steps:
       - /kaniko/executor --context=./backend --dockerfile=./backend/Dockerfile \
           --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA} --cache=true
 
-  # 2) Build frontend image with Kaniko
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
     environment:
@@ -28,8 +26,6 @@ steps:
       - /kaniko/executor --context=./frontend --dockerfile=./frontend/Dockerfile \
           --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA} --cache=true
 
-  # 3) Declarative deploy: generate a tiny overlay that sets image tags to the commit SHA,
-  #    references your repo's dev overlay, then apply -k and wait for rollout.
   - name: deploy
     image: bitnami/kubectl:latest
     environment:
@@ -38,7 +34,8 @@ steps:
       REPO: nexus
     commands:
       - mkdir -p kustom-override/dev
-      - cat > kustom-override/dev/kustomization.yaml <<EOF
+      - |
+        cat > kustom-override/dev/kustomization.yaml <<EOF
         apiVersion: kustomize.config.k8s.io/v1beta1
         kind: Kustomization
         resources:
@@ -61,7 +58,6 @@ type: kubernetes
 name: uat
 trigger: { branch: [uat], event: [push] }
 service_account_name: drone-pipeline
-
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:latest
@@ -80,7 +76,8 @@ steps:
     environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
     commands:
       - mkdir -p kustom-override/uat
-      - cat > kustom-override/uat/kustomization.yaml <<EOF
+      - |
+        cat > kustom-override/uat/kustomization.yaml <<EOF
         apiVersion: kustomize.config.k8s.io/v1beta1
         kind: Kustomization
         resources:
@@ -103,7 +100,6 @@ type: kubernetes
 name: main
 trigger: { branch: [main], event: [push] }
 service_account_name: drone-pipeline
-
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:latest
@@ -122,7 +118,8 @@ steps:
     environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
     commands:
       - mkdir -p kustom-override/main
-      - cat > kustom-override/main/kustomization.yaml <<EOF
+      - |
+        cat > kustom-override/main/kustomization.yaml <<EOF
         apiVersion: kustomize.config.k8s.io/v1beta1
         kind: Kustomization
         resources:
