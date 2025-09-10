@@ -5,6 +5,12 @@ namespace: dev
 resources:
   - ../../base
 
+replicas:
+  - name: backend
+    count: 1
+  - name: frontend
+    count: 1
+
 images:
   - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
     newTag: dev
@@ -16,9 +22,10 @@ configMapGenerator:
     literals:
       - SPRING_PROFILES_ACTIVE=dev
       - DB_URL=jdbc:oracle:thin:@//oracle.db.svc.cluster.local:1521/FREEPDB1
-  - name: nexus-frontend-config
+  - name: nexus-frontend-config    
+    behavior: merge
     literals:
-      - VITE_API_URL=http://backend:8080
+      - PUBLIC_BACKEND_URL=http://backend:8080/nexus
 
 secretGenerator:
   - name: nexus-backend-secrets

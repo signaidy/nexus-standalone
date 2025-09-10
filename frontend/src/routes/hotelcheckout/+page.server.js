@@ -1,7 +1,8 @@
-import { PUBLIC_BACKEND_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export const actions = {
   default: async({request, cookies}) => {
+    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
     const token = cookies.get('token');
     // Generate a random string based on the current date
     const currentDate = new Date();
@@ -45,7 +46,7 @@ export const actions = {
         guests: guests,
         bundle: bundle
       };
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/reservations?providerId=${providerId}`, {
+      const response = await fetch(`${base}/reservations?providerId=${providerId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -86,7 +87,7 @@ export const actions = {
         bundle: bundle
       };
       console.log(body);
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
+      const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -121,7 +122,7 @@ export const actions = {
           bundle: bundle
         };
         console.log(body);
-        const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
+        const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -156,7 +157,7 @@ export const actions = {
           bundle: bundle
         };
         console.log(body);
-        const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
+        const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -190,7 +191,7 @@ export const actions = {
             bundle: bundle
           };
           console.log(body);
-          const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
+          const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${flightProviderId}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

@@ -1,10 +1,13 @@
 import { fail } from "@sveltejs/kit";
-import { PUBLIC_BACKEND_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
+
+
+const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
 
 export async function load({ locals, cookies }) {
   async function getProviders() {
     const token = cookies.get("token")
-    const response = await fetch(`${PUBLIC_BACKEND_URL}/providers`, {
+    const response = await fetch(`${base}/providers`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`
@@ -52,7 +55,7 @@ export const actions = {
           bodyData.gainsFlights = data.get("gains");
         }
 
-        const response = await fetch(`${PUBLIC_BACKEND_URL}/providers/${data.get("providerId")}`, {
+        const response = await fetch(`${base}/providers/${data.get("providerId")}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -89,7 +92,7 @@ export const actions = {
     
     console.log(requestData);
     try {
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/providers`, {
+      const response = await fetch(`${base}/providers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,7 +118,7 @@ export const actions = {
     const token = cookies.get("token");
     let id = (await request.formData()).get("providerId")
     try {
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/providers/${id}`, {
+      const response = await fetch(`${base}/providers/${id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
