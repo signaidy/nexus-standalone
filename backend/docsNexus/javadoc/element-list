@@ -1,0 +1,9 @@
+SpectraSystems.Nexus
+SpectraSystems.Nexus.config
+SpectraSystems.Nexus.controllers
+SpectraSystems.Nexus.dto
+SpectraSystems.Nexus.exceptions
+SpectraSystems.Nexus.filters
+SpectraSystems.Nexus.models
+SpectraSystems.Nexus.repositories
+SpectraSystems.Nexus.services

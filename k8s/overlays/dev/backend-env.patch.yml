@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  template:
+    spec:
+      containers:
+      - name: backend
+        env:
+          - name: SPRING_DATASOURCE_URL
+            valueFrom: { configMapKeyRef: { name: nexus-backend-config, key: DB_URL } }
+          - name: SPRING_DATASOURCE_USERNAME
+            valueFrom: { secretKeyRef: { name: nexus-backend-secrets, key: DB_USER } }
+          - name: SPRING_DATASOURCE_PASSWORD
+            valueFrom: { secretKeyRef: { name: nexus-backend-secrets, key: DB_PASS } }
+          - name: SERVER_PORT
+            value: "8080"

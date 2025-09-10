@@ -1,0 +1,75 @@
+name: nexus-standalone
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: nexus-backend:${APP_ENV:-dev}
+    env_file:
+      # Picks backend/.env.dev, .env.uat, or .env.prod automatically
+      - ./backend/.env.${APP_ENV:-dev}
+    environment:
+      # Fallbacks if some keys are missing in the env file
+      SPRING_PROFILES_ACTIVE: ${APP_ENV:-dev}
+    depends_on:
+      oracle:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    networks:
+      - nexus_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      # Optionally pass an API base URL at build-time if your frontend needs it then.
+      args:
+        # Many Svelte/Vite apps read this at build time. Adjust the ARG name if needed.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://backend:8080}
+    image: nexus-frontend:${APP_ENV:-dev}
+    # If you keep only one .env for the frontend, this will load it.
+    # If you later add per-env files (e.g., .env.dev), you can switch to ./frontend/.env.${APP_ENV}
+    env_file:
+      - ./frontend/.env
+    environment:
+      # Runtime fallback (in case your app reads env at runtime)
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://backend:8080}
+    depends_on:
+      - backend
+    ports:
+      # Map your host port to whatever the container actually serves on.
+      # If your Dockerfile serves with Node on 3000, leave default 3000.
+      # If it serves static via Nginx on 80, set FRONTEND_CONTAINER_PORT=80 in .env
+      - "${FRONTEND_PORT:-5173}:${FRONTEND_CONTAINER_PORT:-3000}"
+    networks:
+      - nexus_net
+
+  oracle:
+    image: gvenzl/oracle-free:latest
+    container_name: oracle-nexus
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD:-admin}    # SYS/SYSTEM password
+      ORACLE_CHARACTERSET: AL32UTF8
+      ORACLE_PDB: FREEPDB1
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+      - ./db/init:/container-entrypoint-initdb.d  # scripts de inicialización
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'select 1 from dual;' | sqlplus -s system/${ORACLE_PASSWORD}@localhost:1521/FREEPDB1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - nexus_net
+
+networks:
+  nexus_net:
+    driver: bridge
+
+volumes:
+  oracle_data:

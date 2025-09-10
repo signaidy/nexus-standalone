@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oracle-init-sql
+  namespace: db
+data:
+  01-create-users.sql: |
+    -- example: adapt to your exact SQL
+    -- This runs at first startup only
+    ALTER SESSION SET CONTAINER = FREEPDB1;
+
+    -- DEV
+    CREATE USER NEXUS_DEV IDENTIFIED BY dev_pass;
+    GRANT CONNECT, RESOURCE TO NEXUS_DEV;
+    GRANT UNLIMITED TABLESPACE TO NEXUS_DEV;
+
+    -- UAT
+    CREATE USER NEXUS_UAT IDENTIFIED BY uat_pass;
+    GRANT CONNECT, RESOURCE TO NEXUS_UAT;
+    GRANT UNLIMITED TABLESPACE TO NEXUS_UAT;
+
+    -- MAIN/PROD
+    CREATE USER NEXUS_MAIN IDENTIFIED BY main_pass;
+    GRANT CONNECT, RESOURCE TO NEXUS_MAIN;
+    GRANT UNLIMITED TABLESPACE TO NEXUS_MAIN;

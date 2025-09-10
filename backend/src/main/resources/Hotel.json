@@ -1,0 +1,204 @@
+[
+    {
+    "_id": "65fb35b732f329f6c1d50db7",
+    "name": "Cecil Hotel",
+    "description": "Escape the ordinary and step into a world of comfort and convenience! Whether you're a solo adventurer, a romantic couple, or a family seeking unforgettable memories, we offer the perfect haven for your stay.",
+    "amenities": ["Pets", "Pool"],
+    "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+    "location": {
+        "street": "3 East 40th Street",
+        "city": "New York",
+        "state": "New York",
+        "country": "United States",
+        "address": "3 East 40th Street New York, New York, United States"
+    },
+    "reviews": {
+        "count": 0,
+        "average": 0
+    },
+    "rooms": {
+        "juniorSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 50,
+            "description": "A cozy suite, featuring a sleeping area and a separate living space, ideal for shorter stays or solo travelers.",
+            "maxOccupancy": 1,
+            "beds": {
+                "amount": 1,
+                "size": "Twin"
+            },
+            "roomSize": "145sqft/13sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        },
+        "standardSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 100,
+            "description": "Offering a comfortable amount of space, this suite typically includes a separate bedroom and living area, suitable for couples or small families.",
+            "maxOccupancy": 2,
+            "beds": {
+                "amount": 2,
+                "size": "Full"
+            },
+            "roomSize": "160sqft/15sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        },
+        "doubleSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 150,
+            "description": "This suite provides ample living space, featuring two bedrooms and a living area, perfect for families or groups traveling together.",
+            "maxOccupancy": 6,
+            "beds": {
+                "amount": 3,
+                "size": "Double"
+            },
+            "roomSize": "175sqft/17sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        },
+        "bigSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 200,
+            "description": "The most spacious option, a big suite offers a luxurious amount of room, often including multiple bedrooms, a living area, and potentially additional features like a dining area or wet bar, ideal for large groups or extended stays.",
+            "maxOccupancy": 8,
+            "beds": {
+                "amount": 4,
+                "size": "King"
+            },
+            "roomSize": "200sqft/19sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        }
+    },
+    "commentaries": [
+        {
+            "_id": "1710962425509",
+            "parentId": "",
+            "userId": "65f9310acfb50244b4e886b0",
+            "userName": "Lionel Andres Messi Cuccittini",
+            "date": "03/20/2024 13:20",
+            "message": "Heeeeello!",
+            "children": [
+                {
+                    "_id": "1710962431467",
+                    "parentId": "1710962425509",
+                    "userId": "65f9310acfb50244b4e886b0",
+                    "userName": "Lionel Andres Messi Cuccittini",
+                    "date": "03/20/2024 13:20",
+                    "message": "Hey!",
+                    "children": [
+                        {
+                            "_id": "1710962440796",
+                            "parentId": "1710962431467",
+                            "userId": "65f9310acfb50244b4e886b0",
+                            "userName": "Lionel Andres Messi Cuccittini",
+                            "date": "03/20/2024 13:20",
+                            "message": "Hey 2!"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+},{
+    "_id": "65fb35b732f329f6c1d50db8",
+    "name": "Cecil Hotel 2 - el mero mero",
+    "description": "Escape the ordinary and step into a world of comfort and convenience! Whether you're a solo adventurer, a romantic couple, or a family seeking unforgettable memories, we offer the perfect haven for your stay.",
+    "amenities": ["Pets", "Pool"],
+    "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+    "location": {
+        "street": "Sheikh Zayed Road",
+        "city": "Dubai",
+        "state": "Dubai",
+        "country": "United Arab Emirates",
+        "address": "Sheikh Zayed Road, Dubai, Dubai, United Arab Emirates"
+    },
+    "reviews": {
+        "count": 0,
+        "average": 0
+    },
+    "rooms": {
+        "juniorSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 50,
+            "description": "A cozy suite, featuring a sleeping area and a separate living space, ideal for shorter stays or solo travelers. But in Dubai.",
+            "maxOccupancy": 1,
+            "beds": {
+                "amount": 1,
+                "size": "Twin"
+            },
+            "roomSize": "145sqft/13sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        },
+        "standardSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 100,
+            "description": "Offering a comfortable amount of space, this suite typically includes a separate bedroom and living area, suitable for couples or small families.",
+            "maxOccupancy": 2,
+            "beds": {
+                "amount": 2,
+                "size": "Full"
+            },
+            "roomSize": "160sqft/15sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        },
+        "doubleSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 150,
+            "description": "This suite provides ample living space, featuring two bedrooms and a living area, perfect for families or groups traveling together.",
+            "maxOccupancy": 6,
+            "beds": {
+                "amount": 3,
+                "size": "Double"
+            },
+            "roomSize": "175sqft/17sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        },
+        "bigSuite": {
+            "picture": "https://cdn1.parksmedia.wdprapps.disney.com/resize/mwImage/1/900/450/75/dam/wdpro-assets/dlr/places-to-stay/disneyland-hotel/resort-overview/disneyland-hotel-06.jpg?1710511066149",
+            "price": 200,
+            "description": "The most spacious option, a big suite offers a luxurious amount of room, often including multiple bedrooms, a living area, and potentially additional features like a dining area or wet bar, ideal for large groups or extended stays.",
+            "maxOccupancy": 8,
+            "beds": {
+                "amount": 4,
+                "size": "King"
+            },
+            "roomSize": "200sqft/19sqm",
+            "totalRooms": 10,
+            "reservedRooms": 0
+        }
+    },
+    "commentaries": [
+        {
+            "_id": "1710962425509",
+            "parentId": "",
+            "userId": "65f9310acfb50244b4e886b0",
+            "userName": "Lionel Andres Messi Cuccittini",
+            "date": "03/20/2024 13:20",
+            "message": "Heeeeello!",
+            "children": [
+                {
+                    "_id": "1710962431467",
+                    "parentId": "1710962425509",
+                    "userId": "65f9310acfb50244b4e886b0",
+                    "userName": "Lionel Andres Messi Cuccittini",
+                    "date": "03/20/2024 13:20",
+                    "message": "Hey!",
+                    "children": [
+                        {
+                            "_id": "1710962440796",
+                            "parentId": "1710962431467",
+                            "userId": "65f9310acfb50244b4e886b0",
+                            "userName": "Lionel Andres Messi Cuccittini",
+                            "date": "03/20/2024 13:20",
+                            "message": "Hey 2!"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]}
+]

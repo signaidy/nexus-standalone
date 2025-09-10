@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: uat
+resources:
+  - ../../base
+
+images:
+  - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
+    newTag: uat
+  - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend
+    newTag: uat
+
+configMapGenerator:
+  - name: nexus-backend-config
+    literals:
+      - SPRING_PROFILES_ACTIVE=uat
+      - DB_URL=jdbc:oracle:thin:@//oracle.db.svc.cluster.local:1521/FREEPDB1
+  - name: nexus-frontend-config
+    literals:
+      - VITE_API_URL=http://backend:8080
+
+secretGenerator:
+  - name: nexus-backend-secrets
+    literals:
+      - DB_USER=NEXUS_UAT
+      - DB_PASS=uat_pass
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+patches:
+  - target: { group: apps, version: v1, kind: Deployment, name: backend }
+    path: backend-env.patch.yml
+  - target: { group: apps, version: v1, kind: Deployment, name: backend }
+    path: backend-waitdb.patch.yml
+  - target: { group: apps, version: v1, kind: Deployment, name: backend }
+    path: backend-probes.jsonpatch.yml

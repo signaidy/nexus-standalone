@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels: { app: nexus, tier: frontend }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: nexus, tier: frontend }
+  template:
+    metadata:
+      labels: { app: nexus, tier: frontend }
+    spec:
+      containers:
+        - name: frontend
+          # Overridden by overlays (image: tag)
+          image: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4173
+          readinessProbe:
+            httpGet: { path: "/", port: 4173 }
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: { path: "/", port: 4173 }
+            initialDelaySeconds: 20
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"

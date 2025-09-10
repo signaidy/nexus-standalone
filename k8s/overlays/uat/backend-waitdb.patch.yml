@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: wait-for-oracle
+        image: nicolaka/netshoot:latest
+        command:
+          - sh
+          - -c
+          - >
+            set -e;
+            for i in $(seq 1 120); do
+              nc -vz -w 3 oracle.db.svc.cluster.local 1521 && exit 0;
+              echo "waiting for oracle:1521 ($i/120)"; sleep 5;
+            done;
+            echo "oracle:1521 not reachable"; exit 1

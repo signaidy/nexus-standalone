@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: oracle
+  namespace: db
+  labels: { app: oracle }
+spec:
+  serviceName: oracle
+  replicas: 1
+  selector:
+    matchLabels: { app: oracle }
+  template:
+    metadata:
+      labels: { app: oracle }
+    spec:
+      containers:
+        - name: oracle
+          image: gvenzl/oracle-free:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ORACLE_PDB
+              value: "FREEPDB1"
+            - name: ORACLE_CHARACTERSET
+              value: "AL32UTF8"
+            - name: ORACLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oracle-secrets
+                  key: ORACLE_PASSWORD
+          ports:
+            - name: sql
+              containerPort: 1521
+          volumeMounts:
+            - name: data
+              mountPath: /opt/oracle/oradata
+            - name: init-sql
+              mountPath: /container-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+      volumes:
+        - name: init-sql
+          configMap:
+            name: oracle-init-sql
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 20Gi
+        # Autopilot default class (Balanced PD) is fine
+        # storageClassName: standard-rwo

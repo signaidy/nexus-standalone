@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels: { app: nexus, tier: backend }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: nexus, tier: backend }
+  template:
+    metadata:
+      labels: { app: nexus, tier: backend }
+    spec:
+      containers:
+        - name: backend
+          # Overridden by overlays (image: tag)
+          image: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: nexus-backend-config }
+            - secretRef:    { name: nexus-backend-secrets }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 25
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"

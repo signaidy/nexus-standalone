@@ -1,0 +1,25 @@
+- op: replace
+  path: /spec/template/spec/containers/0/startupProbe
+  value:
+    tcpSocket:
+      port: 8080
+    periodSeconds: 5
+    failureThreshold: 60
+
+- op: replace
+  path: /spec/template/spec/containers/0/readinessProbe
+  value:
+    tcpSocket:
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
+
+- op: replace
+  path: /spec/template/spec/containers/0/livenessProbe
+  value:
+    tcpSocket:
+      port: 8080
+    initialDelaySeconds: 180
+    periodSeconds: 20
+    failureThreshold: 6
