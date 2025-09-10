@@ -1,4 +1,3 @@
-@'
 # Nexus (Spectra)
 
 Monorepo with:
@@ -10,4 +9,3 @@ Monorepo with:
 
 ## Deploy
 kubectl apply -k k8s/overlays/dev   # or uat/main
-'@ | Out-File -Encoding utf8 README.md
