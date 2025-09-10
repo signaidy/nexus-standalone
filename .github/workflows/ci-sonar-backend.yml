@@ -1,0 +1,82 @@
+name: CI - Backend SonarQube
+
+on:
+  pull_request:
+    branches: [ dev, uat, main ]   # only gate these branches
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-sonar-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  sonar-backend:
+    name: SonarQube Analysis (backend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # helps blame & analysis
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v3
+
+      # Backend-only: run tests + coverage + Sonar; wait for the quality gate
+      - name: Test + Jacoco + Sonar (wait for Quality Gate)
+        run: |
+          ./gradlew --no-daemon clean test jacocoTestReport sonar \
+            -Dsonar.host.url="${SONAR_HOST_URL}" \
+            -Dsonar.login="${SONAR_TOKEN}" \
+            -Dsonar.qualitygate.wait=true \
+            --info
+
+  notify:
+    name: Email Result
+    needs: sonar-backend
+    runs-on: ubuntu-latest
+    if: always()  # run even if the previous job failed
+    steps:
+      - name: Compose outcome
+        id: outcome
+        run: |
+          if [ "${{ needs.sonar-backend.result }}" = "success" ]; then
+            echo "SUBJECT=[PASS] Quality Gate — ${{ github.repository }} (${{ github.head_ref || github.ref_name }})" >> $GITHUB_OUTPUT
+            echo "STATUS=PASS" >> $GITHUB_OUTPUT
+            echo "EMOJI=✅" >> $GITHUB_OUTPUT
+          else
+            echo "SUBJECT=[FAIL] Quality Gate — ${{ github.repository }} (${{ github.head_ref || github.ref_name }})" >> $GITHUB_OUTPUT
+            echo "STATUS=FAIL" >> $GITHUB_OUTPUT
+            echo "EMOJI=❌" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send email (Gmail SMTP)
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: ${{ steps.outcome.outputs.SUBJECT }}
+          to: ${{ secrets.ALERT_EMAIL_TO }}
+          from: ${{ secrets.GMAIL_USERNAME }}
+          html_body: |
+            <p>${{ steps.outcome.outputs.EMOJI }} <b>${{ steps.outcome.outputs.STATUS }}</b> — Quality Gate</p>
+            <p><b>Repo:</b> ${{ github.repository }}<br/>
+               <b>Branch:</b> ${{ github.head_ref || github.ref_name }}<br/>
+               <b>Commit:</b> <code>${{ github.sha }}</code></p>
+            <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a></p>
+            <p><a href="${{ secrets.SONAR_HOST_URL }}/dashboard?id=spectra-systems_nexus-backend">Open Sonar Project</a></p>
