@@ -1,10 +1,11 @@
 <script>
-  import { PUBLIC_BACKEND_URL } from '$env/static/public';
+  import { env } from '$env/dynamic/public';
 
   let informationabout = getAboutInformation();
 
-  async function getAboutInformation() {
-    const response = await fetch(`${PUBLIC_BACKEND_URL}/aboutus/1`, {
+  async function getAboutInformation() {    
+    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const response = await fetch(`${base}/aboutus/1`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

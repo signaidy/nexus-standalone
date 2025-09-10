@@ -1,9 +1,10 @@
 import { redirect } from "@sveltejs/kit";
 import { fail } from "@sveltejs/kit";
-import { PUBLIC_BACKEND_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export const actions = {
   default: async ({ cookies, request }) => {
+    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
     const data = await request.formData();
 
     if (data.get("password") !== data.get("confirmedPassword")) {
@@ -13,7 +14,7 @@ export const actions = {
     }
     
     try {
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/auth/signup`, {
+      const response = await fetch(`${base}/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

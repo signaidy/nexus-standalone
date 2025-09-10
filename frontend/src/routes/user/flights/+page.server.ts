@@ -1,11 +1,12 @@
-import { PUBLIC_BACKEND_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
+const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
 
 export function load({ locals, url }) {
   const userId = locals.user.userId;
   const user = locals.user;
   async function getUserFlights() {
     const response = await fetch(
-      `${PUBLIC_BACKEND_URL}/flights/user/${userId}`,
+      `${base}/flights/user/${userId}`,
       {
         method: "GET"
       }

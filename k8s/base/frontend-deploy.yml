@@ -16,6 +16,9 @@ spec:
           # Overridden by overlays (image: tag)
           image: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:dev
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: nexus-frontend-config
           ports:
             - containerPort: 4173
           readinessProbe:

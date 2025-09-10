@@ -1,7 +1,8 @@
-import { PUBLIC_BACKEND_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export const actions = {
-  default: async({request, cookies}) => {
+  default: async({request, cookies}) => {    
+    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
     const token = cookies.get('token');
     let bundle = null;
       const formData = await request.formData(); 
@@ -46,7 +47,7 @@ export const actions = {
         bundle: bundle
       };
       console.log(body);
-      const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${providerId}`, {
+      const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${providerId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,7 +83,7 @@ export const actions = {
           bundle: bundle
         };
         console.log(body);
-        const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${providerId}`, {
+        const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${providerId}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -117,7 +118,7 @@ export const actions = {
           bundle: bundle
         };
         console.log(body);
-        const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${providerId}`, {
+        const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${providerId}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -151,7 +152,7 @@ export const actions = {
             bundle: bundle
           };
           console.log(body);
-          const response = await fetch(`${PUBLIC_BACKEND_URL}/flights/purchase/${amount}/${method}/${providerId}`, {
+          const response = await fetch(`${base}/flights/purchase/${amount}/${method}/${providerId}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
