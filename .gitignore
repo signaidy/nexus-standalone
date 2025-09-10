@@ -1,0 +1,40 @@
+@'
+# Node / frontend
+node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/dist/
+frontend/.vite/
+frontend/.next/
+frontend/.nuxt/
+
+# Java/Gradle
+backend/build/
+backend/out/
+.gradle/
+**/.gradle/
+*.log
+
+# IDE stuff
+.vscode/
+.idea/
+*.iml
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Docker
+**/.env
+.env
+docker-compose*.yaml
+compose.yml
+
+# K8s – keep secrets local
+k8s/overlays/*/secrets.env
+
+# Misc
+*.jar
+*.war
+*.ear
+'@ | Add-Content .gitignore

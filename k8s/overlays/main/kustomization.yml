@@ -22,9 +22,8 @@ configMapGenerator:
 
 secretGenerator:
   - name: nexus-backend-secrets
-    literals:
-      - DB_USER=NEXUS_MAIN
-      - DB_PASS=main_pass
+    envs:
+      - secrets.env
 
 generatorOptions:
   disableNameSuffixHash: true
