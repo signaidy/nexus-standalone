@@ -3,9 +3,6 @@ name: CI - Backend SonarQube
 on:
   pull_request:
     branches: [dev, uat, main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/ci-sonar-backend.yml'
   workflow_dispatch:
 
 jobs:
@@ -18,6 +15,8 @@ jobs:
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    outputs:
+      analyzed: ${{ steps.changes.outputs.backend }}
 
     steps:
       - name: Checkout
@@ -25,22 +24,35 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+
       - name: Validate Gradle Wrapper
+        if: steps.changes.outputs.backend == 'true'
         uses: gradle/wrapper-validation-action@v2
 
       - name: Make gradlew executable (safety)
+        if: steps.changes.outputs.backend == 'true'
         run: chmod +x gradlew
 
       - name: Setup JDK 21
+        if: steps.changes.outputs.backend == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Setup Gradle cache
+        if: steps.changes.outputs.backend == 'true'
         uses: gradle/actions/setup-gradle@v3
 
       - name: Test + Jacoco + Sonar (wait for Quality Gate)
+        if: steps.changes.outputs.backend == 'true'
         run: |
           ./gradlew --no-daemon clean test jacocoTestReport sonar \
             -Dsonar.host.url="${SONAR_HOST_URL}" \
@@ -48,11 +60,15 @@ jobs:
             -Dsonar.qualitygate.wait=true \
             --info
 
+      - name: No backend changes — skip analysis
+        if: steps.changes.outputs.backend != 'true'
+        run: echo "No backend changes; skipping analysis."
+
   notify:
     name: Email Result
     needs: sonar-backend
     runs-on: ubuntu-latest
-    if: ${{ always() && github.event_name == 'pull_request' }}  # only email for PRs
+    if: ${{ always() && github.event_name == 'pull_request' && needs.sonar-backend.outputs.analyzed == 'true' }}
     steps:
       - name: Compose outcome
         id: outcome
@@ -61,11 +77,9 @@ jobs:
           RESULT: ${{ needs.sonar-backend.result }}
         run: |
           if [ "$RESULT" = "success" ]; then
-            STATE="success"
-            EMOJI="✅"
+            STATE="success"; EMOJI="✅"
           else
-            STATE="failure"
-            EMOJI="❌"
+            STATE="failure"; EMOJI="❌"
           fi
           STATE_UPPER=$(printf '%s' "$STATE" | tr '[:lower:]' '[:upper:]')
           {
