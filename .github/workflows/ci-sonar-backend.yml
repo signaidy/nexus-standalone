@@ -50,40 +50,47 @@ jobs:
             -Dsonar.qualitygate.wait=true \
             --info
 
-  notify:
-    name: Email Result
-    needs: sonar-backend
-    runs-on: ubuntu-latest
-    if: always()  # run even if the previous job failed
-    steps:
-      - name: Compose outcome
-        id: outcome
-        run: |
-          if [ "${{ needs.sonar-backend.result }}" = "success" ]; then
-            echo "SUBJECT=[PASS] Quality Gate — ${{ github.repository }} (${{ github.head_ref || github.ref_name }})" >> $GITHUB_OUTPUT
-            echo "STATUS=PASS" >> $GITHUB_OUTPUT
-            echo "EMOJI=✅" >> $GITHUB_OUTPUT
-          else
-            echo "SUBJECT=[FAIL] Quality Gate — ${{ github.repository }} (${{ github.head_ref || github.ref_name }})" >> $GITHUB_OUTPUT
-            echo "STATUS=FAIL" >> $GITHUB_OUTPUT
-            echo "EMOJI=❌" >> $GITHUB_OUTPUT
-          fi
+    notify:
+        name: Email Result
+        needs: sonar-backend
+        runs-on: ubuntu-latest
+        if: ${{ always() && github.event_name == 'pull_request' }}  # only email for PRs
+        steps:
+        - name: Compose outcome
+            id: outcome
+            env:
+            PR_NUMBER: ${{ github.event.pull_request.number }}
+            RESULT: ${{ needs.sonar-backend.result }}
+            run: |
+            if [ "$RESULT" = "success" ]; then
+                STATE="success"
+                EMOJI="✅"
+            else
+                STATE="failure"
+                EMOJI="❌"
+            fi
+            echo "STATE=$STATE" >> $GITHUB_OUTPUT
+            echo "EMOJI=$EMOJI" >> $GITHUB_OUTPUT
+            echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "SUBJECT=Test Merge #$PR_NUMBER pull request $STATE — Quality Gate" >> $GITHUB_OUTPUT
 
-      - name: Send email (Gmail SMTP)
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USERNAME }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: ${{ steps.outcome.outputs.SUBJECT }}
-          to: ${{ secrets.ALERT_EMAIL_TO }}
-          from: ${{ secrets.GMAIL_USERNAME }}
-          html_body: |
-            <p>${{ steps.outcome.outputs.EMOJI }} <b>${{ steps.outcome.outputs.STATUS }}</b> — Quality Gate</p>
-            <p><b>Repo:</b> ${{ github.repository }}<br/>
-               <b>Branch:</b> ${{ github.head_ref || github.ref_name }}<br/>
-               <b>Commit:</b> <code>${{ github.sha }}</code></p>
-            <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a></p>
-            <p><a href="${{ secrets.SONAR_HOST_URL }}/dashboard?id=spectra-systems_nexus-backend">Open Sonar Project</a></p>
+        - name: Send email (Gmail SMTP)
+            uses: dawidd6/action-send-mail@v3
+            with:
+            server_address: smtp.gmail.com
+            server_port: 465
+            secure: true
+            username: ${{ secrets.GMAIL_USERNAME }}
+            password: ${{ secrets.GMAIL_APP_PASSWORD }}
+            subject: ${{ steps.outcome.outputs.SUBJECT }}
+            to: ${{ secrets.ALERT_EMAIL_TO }}
+            from: ${{ secrets.GMAIL_USERNAME }}
+            html_body: |
+                <p><strong>Test Merge #${{ steps.outcome.outputs.PR_NUMBER }} pull request ${{ steps.outcome.outputs.STATE }}</strong></p>
+                <p>${{ steps.outcome.outputs.EMOJI }} <b>${{ steps.outcome.outputs.STATE | upper }}</b> — Quality Gate</p>
+                <p><b>Repo:</b> ${{ github.repository }}<br/>
+                <b>Branch:</b> ${{ github.head_ref || github.ref_name }}<br/>
+                <b>Commit:</b> <code>${{ github.sha }}</code></p>
+                <p><a href="https://github.com/${{ github.repository }}/pull/${{ steps.outcome.outputs.PR_NUMBER }}">Open Pull Request #${{ steps.outcome.outputs.PR_NUMBER }}</a></p>
+                <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a></p>
+                <p><a href="${{ secrets.SONAR_HOST_URL }}/dashboard?id=spectra-systems_nexus-backend">Open Sonar Project</a></p>
