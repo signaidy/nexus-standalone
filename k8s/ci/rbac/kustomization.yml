@@ -1,0 +1,6 @@
+resources:
+  - clusterrole.yml
+  - serviceaccount.yml
+  - rolebinding-dev.yml
+  - rolebinding-uat.yml
+  - rolebinding-main.yml

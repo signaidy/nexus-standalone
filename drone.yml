@@ -1,0 +1,140 @@
+---
+kind: pipeline
+type: kubernetes
+name: dev
+trigger: { branch: [dev], event: [push] }
+service_account_name: drone-pipeline
+
+steps:
+  # 1) Build backend image with Kaniko
+  - name: build-backend
+    image: gcr.io/kaniko-project/executor:latest
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+    commands:
+      - /kaniko/executor --context=./backend --dockerfile=./backend/Dockerfile \
+          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA} --cache=true
+
+  # 2) Build frontend image with Kaniko
+  - name: build-frontend
+    image: gcr.io/kaniko-project/executor:latest
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+    commands:
+      - /kaniko/executor --context=./frontend --dockerfile=./frontend/Dockerfile \
+          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA} --cache=true
+
+  # 3) Declarative deploy: generate a tiny overlay that sets image tags to the commit SHA,
+  #    references your repo's dev overlay, then apply -k and wait for rollout.
+  - name: deploy
+    image: bitnami/kubectl:latest
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+    commands:
+      - mkdir -p kustom-override/dev
+      - cat > kustom-override/dev/kustomization.yaml <<EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../../k8s/overlays/dev
+        images:
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newTag: ${DRONE_COMMIT_SHA}
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newTag: ${DRONE_COMMIT_SHA}
+        EOF
+      - kubectl apply -k kustom-override/dev
+      - kubectl -n dev rollout status deploy/backend --timeout=180s
+      - kubectl -n dev rollout status deploy/frontend --timeout=180s
+
+---
+kind: pipeline
+type: kubernetes
+name: uat
+trigger: { branch: [uat], event: [push] }
+service_account_name: drone-pipeline
+
+steps:
+  - name: build-backend
+    image: gcr.io/kaniko-project/executor:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - /kaniko/executor --context=./backend --dockerfile=./backend/Dockerfile \
+          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA} --cache=true
+  - name: build-frontend
+    image: gcr.io/kaniko-project/executor:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - /kaniko/executor --context=./frontend --dockerfile=./frontend/Dockerfile \
+          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA} --cache=true
+  - name: deploy
+    image: bitnami/kubectl:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - mkdir -p kustom-override/uat
+      - cat > kustom-override/uat/kustomization.yaml <<EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../../k8s/overlays/uat
+        images:
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newTag: ${DRONE_COMMIT_SHA}
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newTag: ${DRONE_COMMIT_SHA}
+        EOF
+      - kubectl apply -k kustom-override/uat
+      - kubectl -n uat rollout status deploy/backend --timeout=180s
+      - kubectl -n uat rollout status deploy/frontend --timeout=180s
+
+---
+kind: pipeline
+type: kubernetes
+name: main
+trigger: { branch: [main], event: [push] }
+service_account_name: drone-pipeline
+
+steps:
+  - name: build-backend
+    image: gcr.io/kaniko-project/executor:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - /kaniko/executor --context=./backend --dockerfile=./backend/Dockerfile \
+          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA} --cache=true
+  - name: build-frontend
+    image: gcr.io/kaniko-project/executor:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - /kaniko/executor --context=./frontend --dockerfile=./frontend/Dockerfile \
+          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA} --cache=true
+  - name: deploy
+    image: bitnami/kubectl:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - mkdir -p kustom-override/main
+      - cat > kustom-override/main/kustomization.yaml <<EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../../k8s/overlays/main
+        images:
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newTag: ${DRONE_COMMIT_SHA}
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newTag: ${DRONE_COMMIT_SHA}
+        EOF
+      - kubectl apply -k kustom-override/main
+      - kubectl -n main rollout status deploy/backend --timeout=180s
+      - kubectl -n main rollout status deploy/frontend --timeout=180s
