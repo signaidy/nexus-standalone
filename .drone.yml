@@ -8,23 +8,21 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:latest
-    environment:
-      PROJECT_ID: spectra-kube
-      REGION: us-central1
-      REPO: nexus
-    commands:
-      - /kaniko/executor --context=./backend --dockerfile=./backend/Dockerfile \
-          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA} --cache=true
+    command: ["/kaniko/executor"]
+    args:
+      - "--context=${DRONE_WORKSPACE}/backend"
+      - "--dockerfile=${DRONE_WORKSPACE}/backend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
-    environment:
-      PROJECT_ID: spectra-kube
-      REGION: us-central1
-      REPO: nexus
-    commands:
-      - /kaniko/executor --context=./frontend --dockerfile=./frontend/Dockerfile \
-          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA} --cache=true
+    command: ["/kaniko/executor"]
+    args:
+      - "--context=${DRONE_WORKSPACE}/frontend"
+      - "--dockerfile=${DRONE_WORKSPACE}/frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
 
   - name: deploy
     image: bitnami/kubectl:latest
@@ -61,16 +59,22 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:latest
-    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
-    commands:
-      - /kaniko/executor --context=./backend --dockerfile=./backend/Dockerfile \
-          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA} --cache=true
+    command: ["/kaniko/executor"]
+    args:
+      - "--context=${DRONE_WORKSPACE}/backend"
+      - "--dockerfile=${DRONE_WORKSPACE}/backend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
+
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
-    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
-    commands:
-      - /kaniko/executor --context=./frontend --dockerfile=./frontend/Dockerfile \
-          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA} --cache=true
+    command: ["/kaniko/executor"]
+    args:
+      - "--context=${DRONE_WORKSPACE}/frontend"
+      - "--dockerfile=${DRONE_WORKSPACE}/frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
+
   - name: deploy
     image: bitnami/kubectl:latest
     environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
@@ -103,16 +107,22 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:latest
-    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
-    commands:
-      - /kaniko/executor --context=./backend --dockerfile=./backend/Dockerfile \
-          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA} --cache=true
+    command: ["/kaniko/executor"]
+    args:
+      - "--context=${DRONE_WORKSPACE}/backend"
+      - "--dockerfile=${DRONE_WORKSPACE}/backend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
+
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
-    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
-    commands:
-      - /kaniko/executor --context=./frontend --dockerfile=./frontend/Dockerfile \
-          --destination=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA} --cache=true
+    command: ["/kaniko/executor"]
+    args:
+      - "--context=${DRONE_WORKSPACE}/frontend"
+      - "--dockerfile=${DRONE_WORKSPACE}/frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
+      
   - name: deploy
     image: bitnami/kubectl:latest
     environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
