@@ -176,9 +176,6 @@ public class FlightController {
     public ResponseEntity<List<City>> getAllCitiesFromOtherBackend() {
         
         List<City> cities = flightService.getAllCitiesFromOtherBackend();
-        if(true){
-            cities = flightService.getAllCitiesFromOtherBackend();
-        }
         return new ResponseEntity<>(cities, HttpStatus.OK);
     }
 
@@ -326,7 +323,7 @@ public class FlightController {
                 String userEmail = user.getEmail();    
                 // Create MimeMessage
                 MimeMessage message = emailSender.createMimeMessage();
-                if (Type == "flight") {
+                if ("flight".equals(Type)) {
                     MimeMessageHelper helper = new MimeMessageHelper(message, true);
                     helper.setTo(userEmail);
                     helper.setSubject("Flight Reservation Cancellation");
