@@ -34,6 +34,6 @@ describe('login action - success', () => {
       expect.objectContaining({ method: 'POST' })
     );
     expect(cookies.set).toHaveBeenCalledWith('token', 'T0K3N', expect.any(Object));
-    expect(cookies.set).toHaveBeenCalledWith('user', expect.stringContaining('"email":"user@example.com"'), expect.any(Object));
+    expect(cookies.set).toHaveBeenCalledWith('User', expect.stringContaining('"email":"user@example.com"'), expect.any(Object));
   });
 });
