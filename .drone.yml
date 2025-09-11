@@ -38,7 +38,7 @@ steps:
     command:
       - "--verbosity=debug"
       - "--context=frontend"
-      - "--dockerfile=frontend/Dockerfile.runtime"
+      - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
@@ -109,7 +109,7 @@ steps:
     command:
       - "--verbosity=debug"
       - "--context=frontend"
-      - "--dockerfile=frontend/Dockerfile.runtime"
+      - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
@@ -177,7 +177,7 @@ steps:
     command:
       - "--verbosity=debug"
       - "--context=frontend"
-      - "--dockerfile=frontend/Dockerfile.runtime"
+      - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
