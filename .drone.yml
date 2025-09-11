@@ -17,10 +17,11 @@ steps:
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
     command:
-    - "--context=frontend"
-    - "--dockerfile=frontend/Dockerfile"
-    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
-    - "--cache=true"
+      - "--verbosity=debug"
+      - "--context=frontend"
+      - "--dockerfile=frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
 
   - name: deploy
     image: bitnami/kubectl:latest
@@ -66,10 +67,11 @@ steps:
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
     command:
-    - "--context=frontend"
-    - "--dockerfile=frontend/Dockerfile"
-    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
-    - "--cache=true"
+      - "--verbosity=debug"
+      - "--context=frontend"
+      - "--dockerfile=frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
 
   - name: deploy
     image: bitnami/kubectl:latest
@@ -112,10 +114,12 @@ steps:
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
     command:
-    - "--context=frontend"
-    - "--dockerfile=frontend/Dockerfile"
-    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
-    - "--cache=true"
+      - "--verbosity=debug"
+      - "--context=frontend"
+      - "--dockerfile=frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
+
       
   - name: deploy
     image: bitnami/kubectl:latest
