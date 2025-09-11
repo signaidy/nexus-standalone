@@ -25,12 +25,14 @@ steps:
       - "--image-fs-extract-retry=5"
       - "--push-retry=5"
       - "--snapshot-mode=time"
+      - "--single-snapshot" 
       - "--compressed-caching=false"
       - "--no-push-cache"
       - "--context=frontend"
       - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
+
 
 
   - name: deploy

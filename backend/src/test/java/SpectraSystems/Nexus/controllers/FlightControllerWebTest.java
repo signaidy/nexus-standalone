@@ -34,6 +34,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.mockito.Answers;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
+import SpectraSystems.Nexus.models.externalFlight;
+
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
@@ -263,4 +265,83 @@ class FlightControllerWebTest {
         mvc.perform(put("/nexus/flights/deactivateTicket/{id}", 99))
            .andExpect(status().isNotFound());
     }
+
+   private static externalFlight ef(long origin, long dest) {
+      externalFlight e = new externalFlight();
+      e.setOriginCityId(origin);
+      e.setDestinationCityId(dest);
+      return e;
+   }
+
+   @Test
+   void roundTrip_match_when_bothHaveScale() throws Exception {
+      // outbound: origin=10, outbound.scale.dest=99
+      externalFlight outbound = ef(10, 20);
+      outbound.setScale(ef(0, 99));
+
+      // return: origin=99, return.scale.dest=10 (matches branch 1)
+      externalFlight ret = ef(99, 77);
+      ret.setScale(ef(0, 10));
+
+      when(flightService.getOneWayFlightsFromOtherBackend(10L, 20L, "2025-12-01", 1))
+               .thenReturn(List.of(outbound));
+      when(flightService.getOneWayFlightsFromOtherBackend(20L, 10L, "2025-12-10", 1))
+               .thenReturn(List.of(ret));
+
+      mvc.perform(get("/nexus/flights/avianca/round-trip-flights")
+               .param("originCity", "10")
+               .param("destinationCity", "20")
+               .param("departureDay", "2025-12-01")
+               .param("returnDay", "2025-12-10")
+               .param("passengers", "1"))
+         .andExpect(status().isOk())
+         .andExpect(jsonPath("$[0].returnFlight").exists());
+   }
+
+   @Test
+   void roundTrip_match_when_onlyOutboundHasScale() throws Exception {
+      // outbound: origin=10, outbound.scale.dest=99
+      externalFlight outbound = ef(10, 20);
+      outbound.setScale(ef(0, 99));
+
+      // return: origin=99, dest=10 (matches branch 2)
+      externalFlight ret = ef(99, 10);
+
+      when(flightService.getOneWayFlightsFromOtherBackend(10L, 20L, "2025-12-01", 1))
+               .thenReturn(List.of(outbound));
+      when(flightService.getOneWayFlightsFromOtherBackend(20L, 10L, "2025-12-10", 1))
+               .thenReturn(List.of(ret));
+
+      mvc.perform(get("/nexus/flights/avianca/round-trip-flights")
+               .param("originCity", "10")
+               .param("destinationCity", "20")
+               .param("departureDay", "2025-12-01")
+               .param("returnDay", "2025-12-10")
+               .param("passengers", "1"))
+         .andExpect(status().isOk())
+         .andExpect(jsonPath("$[0].returnFlight").exists());
+   }
+
+   @Test
+   void roundTrip_match_when_noScale() throws Exception {
+      // outbound: origin=10, dest=20
+      externalFlight outbound = ef(10, 20);
+
+      // return: origin=20, dest=10 (matches branch 3 / else)
+      externalFlight ret = ef(20, 10);
+
+      when(flightService.getOneWayFlightsFromOtherBackend(10L, 20L, "2025-12-01", 1))
+               .thenReturn(List.of(outbound));
+      when(flightService.getOneWayFlightsFromOtherBackend(20L, 10L, "2025-12-10", 1))
+               .thenReturn(List.of(ret));
+
+      mvc.perform(get("/nexus/flights/avianca/round-trip-flights")
+               .param("originCity", "10")
+               .param("destinationCity", "20")
+               .param("departureDay", "2025-12-01")
+               .param("returnDay", "2025-12-10")
+               .param("passengers", "1"))
+         .andExpect(status().isOk())
+         .andExpect(jsonPath("$[0].returnFlight").exists());
+   }
 }

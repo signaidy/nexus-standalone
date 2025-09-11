@@ -12,9 +12,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import SpectraSystems.Nexus.repositories.ProviderRepository;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +35,7 @@ class ReservationControllerWebTest {
     @Autowired MockMvc mvc;
 
     @MockBean ReservationService reservationService;
+    @MockBean ProviderRepository providerRepository;
 
     // Deep-stub to satisfy SecurityConfig (e.g., userService.userDetailsService())
     @MockBean(answer = Answers.RETURNS_DEEP_STUBS)
@@ -178,5 +181,22 @@ class ReservationControllerWebTest {
         mvc.perform(get("/nexus/reservations/cities"))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
+    }
+
+    @Test
+    void createReservation_alwaysBadRequest_now() throws Exception {
+        mvc.perform(post("/nexus/reservations")
+                .param("providerId", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getHotelRoomById_alwaysBadRequest_now() throws Exception {
+        mvc.perform(get("/nexus/reservations/roomsearch")
+                .param("id", "H1")
+                .param("providerId", "1"))
+           .andExpect(status().isBadRequest());
     }
 }

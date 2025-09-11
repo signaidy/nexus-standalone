@@ -16,7 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
-import java.util.Date; // <-- add this
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -97,7 +97,7 @@ class FlightServiceUnitTest {
         details.setFlightNumber("NEW");
         details.setDepartureLocation("GUA");
         details.setArrivalLocation("LAX");
-        Date expectedDate = java.sql.Date.valueOf(LocalDate.of(2025, 12, 1)); // <-- use java.util.Date
+        Date expectedDate = java.sql.Date.valueOf(LocalDate.of(2025, 12, 1));
         details.setReturnDate(expectedDate);
 
         when(flightRepository.findById(5L)).thenReturn(Optional.of(existing));
@@ -108,7 +108,7 @@ class FlightServiceUnitTest {
         assertEquals("NEW", out.getFlightNumber());
         assertEquals("GUA", out.getDepartureLocation());
         assertEquals("LAX", out.getArrivalLocation());
-        assertEquals(expectedDate, out.getReturnDate()); // <-- assert Date
+        assertEquals(expectedDate, out.getReturnDate());
 
         ArgumentCaptor<Flight> cap = ArgumentCaptor.forClass(Flight.class);
         verify(flightRepository).save(cap.capture());
