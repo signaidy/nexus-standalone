@@ -9,12 +9,11 @@ ENV NODE_ENV=production \
     npm_config_progress=false \
     npm_config_update_notifier=false
 
-# 1) Cacheable layer for runtime deps
 COPY package.json package-lock.json ./
 
-# 2) Copy the app
+# Drop in prebuilt app + prepruned prod deps as tarballs
 ADD build.tgz ./
-ADD node_modules.tgz ./
+ADD node_modules.tgz ./node_modules
 
 EXPOSE 4173
 CMD ["node", "build"]

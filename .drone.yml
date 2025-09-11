@@ -28,15 +28,15 @@ steps:
       - cd frontend
       - npm ci
       - npm run build
-      - npm prune --omit=dev
       - tar -czf build.tgz build
+      - npm prune --omit=dev
       - tar -czf node_modules.tgz node_modules
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     timeout: 90      
     resources:
-      requests: { cpu: 1, memory: 1Gi }
+      requests: { cpu: 2, memory: 2Gi }
       limits:   { cpu: 4, memory: 4Gi }
     command:
       - "--verbosity=debug"
@@ -46,6 +46,8 @@ steps:
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
       - "--snapshot-mode=time"
+      - "--single-snapshot"
+      - "--reproducible"
 
   - name: deploy
     image: bitnami/kubectl:latest
@@ -117,6 +119,8 @@ steps:
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
       - "--snapshot-mode=time"
+      - "--single-snapshot"
+      - "--reproducible"
 
   - name: deploy
     image: bitnami/kubectl:latest
@@ -185,6 +189,8 @@ steps:
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
       - "--snapshot-mode=time"
+      - "--single-snapshot"
+      - "--reproducible"
 
       
   - name: deploy
