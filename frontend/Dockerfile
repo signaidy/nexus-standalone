@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 
 # drop in prebuilt app + prepruned deps (from the Drone build step)
 ADD build.tgz ./
-ADD node_modules.tgz ./node_modules
+ADD node_modules.tgz ./
 
 EXPOSE 4173
 USER nonroot

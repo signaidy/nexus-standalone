@@ -32,22 +32,37 @@ steps:
       - tar -czf build.tgz build
       - npm prune --omit=dev
       - tar -czf node_modules.tgz node_modules
+      - du -sh build node_modules || true
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
       requests: { cpu: 2, memory: 2Gi }
       limits:   { cpu: 4, memory: 4Gi }
+    entrypoint:
+      - /busybox/sh
+      - -c
     command:
-      - "--verbosity=debug"
-      - "--context=frontend"
-      - "--dockerfile=frontend/Dockerfile"
-      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
-      - "--cache=true"
-      - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
-      - "--snapshot-mode=time"
-      - "--single-snapshot"
-      - "--reproducible"
+      - |
+        set -euo pipefail
+        /kaniko/executor \
+          --verbosity=debug \
+          --context=frontend \
+          --dockerfile=frontend/Dockerfile \
+          --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA} \
+          --cache=true \
+          --cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache \
+          --snapshot-mode=time \
+          --single-snapshot \
+          --reproducible &
+
+        pid=$!
+        # heartbeat: print once a minute until Kaniko exits
+        while kill -0 "$pid" >/dev/null 2>&1; do
+          echo "[kaniko] still working: $(/busybox/date -u +%Y-%m-%dT%H:%M:%SZ)"
+          /busybox/sleep 60
+        done
+        wait "$pid"
 
   - name: deploy
     image: bitnami/kubectl:latest

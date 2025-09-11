@@ -15,9 +15,6 @@ jobs:
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
-      # Force a writable npm cache in GHA (overrides .npmrc)
-      NPM_CONFIG_CACHE: ${{ runner.temp }}/npm-cache
-      npm_config_cache: ${{ runner.temp }}/npm-cache
     outputs:
       analyzed: ${{ steps.changes.outputs.frontend }}
 
@@ -36,18 +33,17 @@ jobs:
               - 'frontend/**'
               - '.github/workflows/ci-sonar-frontend.yml'
 
-      - name: Prepare npm cache dir
+      # Set a writable npm cache dir for this run (overrides repo .npmrc)
+      - name: Set npm cache dir
         if: steps.changes.outputs.frontend == 'true'
         run: |
-          mkdir -p "$NPM_CONFIG_CACHE"
-          echo "Using npm cache at: $NPM_CONFIG_CACHE"
+          echo "NPM_CONFIG_CACHE=$RUNNER_TEMP/npm-cache" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/npm-cache"
+        # (This uses GitHub's workflow command to export env for later steps.)  # docs: GITHUB_ENV
 
       - name: Setup Node
         if: steps.changes.outputs.frontend == 'true'
         uses: actions/setup-node@v4
-        env:
-          # Ensure the action caches the same dir
-          NPM_CONFIG_CACHE: ${{ runner.temp }}/npm-cache
         with:
           node-version: 20
           cache: npm
@@ -93,7 +89,7 @@ jobs:
         id: outcome
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          RESULT: ${{ needs.sonar-backend.result }}
+          RESULT: ${{ needs.sonar-frontend.result }}
         run: |
           if [ "$RESULT" = "success" ]; then
             STATE="success"; EMOJI="✅"
@@ -128,4 +124,4 @@ jobs:
                <b>Commit:</b> <code>${{ github.sha }}</code></p>
             <p><a href="https://github.com/${{ github.repository }}/pull/${{ steps.outcome.outputs.PR_NUMBER }}">Open Pull Request #${{ steps.outcome.outputs.PR_NUMBER }}</a></p>
             <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a></p>
-            <p><a href="${{ secrets.SONAR_HOST_URL }}/dashboard?id=spectra-systems_nexus-backend">Open Sonar Project</a></p>
+            <p><a href="${{ secrets.SONAR_HOST_URL }}/dashboard?id=spectra-systems_nexus-frontend">Open Sonar Project</a></p>
