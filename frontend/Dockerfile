@@ -1,18 +1,19 @@
-# syntax=docker/dockerfile:1.4
-FROM mirror.gcr.io/library/node:20-bookworm-slim
+# syntax=docker/dockerfile:1.5
+FROM mirror.gcr.io/library/node:20-alpine
 
 WORKDIR /usr/src/app
 
+# 1) layer cache on lockfile changes
 COPY package.json package-lock.json ./
-COPY .npmrc .npmrc
 
 ENV NODE_OPTIONS="--max-old-space-size=2048" \
     npm_config_fund=false \
     npm_config_audit=false \
     npm_config_progress=false
 
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN npm ci
 
+# 2) now copy the rest and build
 COPY . .
 RUN npm run build
 
