@@ -15,6 +15,9 @@ jobs:
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
+      # Force a writable npm cache in GHA (overrides .npmrc)
+      NPM_CONFIG_CACHE: ${{ runner.temp }}/npm-cache
+      npm_config_cache: ${{ runner.temp }}/npm-cache
     outputs:
       analyzed: ${{ steps.changes.outputs.frontend }}
 
@@ -33,23 +36,35 @@ jobs:
               - 'frontend/**'
               - '.github/workflows/ci-sonar-frontend.yml'
 
+      - name: Prepare npm cache dir
+        if: steps.changes.outputs.frontend == 'true'
+        run: |
+          mkdir -p "$NPM_CONFIG_CACHE"
+          echo "Using npm cache at: $NPM_CONFIG_CACHE"
+
       - name: Setup Node
         if: steps.changes.outputs.frontend == 'true'
         uses: actions/setup-node@v4
+        env:
+          # Ensure the action caches the same dir
+          NPM_CONFIG_CACHE: ${{ runner.temp }}/npm-cache
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+          # (setup-node caches whatever `npm config get cache` returns) :contentReference[oaicite:1]{index=1}
 
       - name: Install deps
         if: steps.changes.outputs.frontend == 'true'
-        run: npm ci
+        run: |
+          # CLI flags outrank .npmrc; also pin registry explicitly
+          npm ci --cache "$NPM_CONFIG_CACHE" --registry=https://registry.npmjs.org/
+        # (CLI > env > project .npmrc precedence) :contentReference[oaicite:2]{index=2}
 
       - name: Run smoke tests + coverage
         if: steps.changes.outputs.frontend == 'true'
         run: npm run test:smoke:cov
 
-      # --- Sonar scan (self-hosted SonarQube) ---
       - name: SonarQube Scan
         if: steps.changes.outputs.frontend == 'true'
         uses: sonarsource/sonarqube-scan-action@v2
@@ -59,16 +74,62 @@ jobs:
         with:
           projectBaseDir: frontend
 
-      # Wait for the Quality Gate (blocks merge if fails)
       - name: SonarQube Quality Gate
         if: steps.changes.outputs.frontend == 'true'
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         with:
-            scanMetadataReportFile: frontend/.scannerwork/report-task.txt
+          scanMetadataReportFile: frontend/.scannerwork/report-task.txt
         env:
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-            SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: No frontend changes — skip analysis
         if: steps.changes.outputs.frontend != 'true'
         run: echo "No frontend changes detected; skipping Sonar."
+
+  notify:
+    name: Email Result
+    needs: sonar-frontend
+    runs-on: ubuntu-latest
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    steps:
+      - name: Compose outcome
+        id: outcome
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RESULT: ${{ needs.sonar-backend.result }}
+        run: |
+          if [ "$RESULT" = "success" ]; then
+            STATE="success"; EMOJI="✅"
+          else
+            STATE="failure"; EMOJI="❌"
+          fi
+          STATE_UPPER=$(printf '%s' "$STATE" | tr '[:lower:]' '[:upper:]')
+          {
+            echo "STATE=$STATE"
+            echo "STATE_UPPER=$STATE_UPPER"
+            echo "EMOJI=$EMOJI"
+            echo "PR_NUMBER=$PR_NUMBER"
+            echo "SUBJECT=Test Merge #$PR_NUMBER pull request $STATE — Quality Gate"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send email (Gmail SMTP)
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: ${{ steps.outcome.outputs.SUBJECT }}
+          to: ${{ secrets.ALERT_EMAIL_TO }}
+          from: ${{ secrets.GMAIL_USERNAME }}
+          html_body: |
+            <p><strong>Test Merge #${{ steps.outcome.outputs.PR_NUMBER }} pull request ${{ steps.outcome.outputs.STATE }}</strong></p>
+            <p>${{ steps.outcome.outputs.EMOJI }} <b>${{ steps.outcome.outputs.STATE_UPPER }}</b> — Quality Gate</p>
+            <p><b>Repo:</b> ${{ github.repository }}<br/>
+               <b>Branch:</b> ${{ github.head_ref || github.ref_name }}<br/>
+               <b>Commit:</b> <code>${{ github.sha }}</code></p>
+            <p><a href="https://github.com/${{ github.repository }}/pull/${{ steps.outcome.outputs.PR_NUMBER }}">Open Pull Request #${{ steps.outcome.outputs.PR_NUMBER }}</a></p>
+            <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a></p>
+            <p><a href="${{ secrets.SONAR_HOST_URL }}/dashboard?id=spectra-systems_nexus-backend">Open Sonar Project</a></p>
