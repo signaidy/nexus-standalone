@@ -14,21 +14,35 @@ steps:
     - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
     - "--cache=true"
 
+  - name: frontend-build
+    image: node:20-bullseye
+    environment:
+      npm_config_fund: "false"
+      npm_config_audit: "false"
+      npm_config_progress: "false"
+      npm_config_fetch_retries: "8"
+      npm_config_fetch_retry_mintimeout: "30000"
+      npm_config_fetch_retry_maxtimeout: "180000"
+      npm_config_network_timeout: "600000"
+    commands:
+      - cd frontend
+      - npm ci
+      - npm run build
+      - npm prune --omit=dev
+
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
       requests: { cpu: 1, memory: 1Gi }
-      limits:   { cpu: 2, memory: 4Gi }
+      limits:   { cpu: 4, memory: 4Gi }
     command:
       - "--verbosity=debug"
       - "--context=frontend"
-      - "--dockerfile=frontend/Dockerfile"
+      - "--dockerfile=frontend/Dockerfile.runtime"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
       - "--snapshot-mode=time"
-
-
 
   - name: deploy
     image: bitnami/kubectl:latest
@@ -71,15 +85,31 @@ steps:
     - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
     - "--cache=true"
 
+  - name: frontend-build
+    image: node:20-bullseye
+    environment:
+      npm_config_fund: "false"
+      npm_config_audit: "false"
+      npm_config_progress: "false"
+      npm_config_fetch_retries: "8"
+      npm_config_fetch_retry_mintimeout: "30000"
+      npm_config_fetch_retry_maxtimeout: "180000"
+      npm_config_network_timeout: "600000"
+    commands:
+      - cd frontend
+      - npm ci
+      - npm run build
+      - npm prune --omit=dev
+
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
       requests: { cpu: 1, memory: 1Gi }
-      limits:   { cpu: 2, memory: 4Gi }
+      limits:   { cpu: 4, memory: 4Gi }
     command:
       - "--verbosity=debug"
       - "--context=frontend"
-      - "--dockerfile=frontend/Dockerfile"
+      - "--dockerfile=frontend/Dockerfile.runtime"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
@@ -123,15 +153,31 @@ steps:
     - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
     - "--cache=true"
 
+  - name: frontend-build
+    image: node:20-bullseye
+    environment:
+      npm_config_fund: "false"
+      npm_config_audit: "false"
+      npm_config_progress: "false"
+      npm_config_fetch_retries: "8"
+      npm_config_fetch_retry_mintimeout: "30000"
+      npm_config_fetch_retry_maxtimeout: "180000"
+      npm_config_network_timeout: "600000"
+    commands:
+      - cd frontend
+      - npm ci
+      - npm run build
+      - npm prune --omit=dev
+
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
       requests: { cpu: 1, memory: 1Gi }
-      limits:   { cpu: 2, memory: 4Gi }
+      limits:   { cpu: 4, memory: 4Gi }
     command:
       - "--verbosity=debug"
       - "--context=frontend"
-      - "--dockerfile=frontend/Dockerfile"
+      - "--dockerfile=frontend/Dockerfile.runtime"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
       - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"

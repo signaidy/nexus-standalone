@@ -1,12 +1,12 @@
 # node
-node_modules
+# node_modules
 .npm
 .npmrc.local
 
 # svelte/vite
 .svelte-kit
 dist
-build
+# build
 coverage
 
 # tests & local stuff

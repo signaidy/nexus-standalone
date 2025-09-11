@@ -2,30 +2,16 @@
 FROM mirror.gcr.io/library/node:20-alpine
 WORKDIR /usr/src/app
 
+# Run as production server on port 4173 to match your k8s probes
 ENV NODE_ENV=production \
-    NPM_CONFIG_FUND=false \
-    NPM_CONFIG_AUDIT=false \
-    NPM_CONFIG_PROGRESS=false \
-    NPM_CONFIG_FETCH_RETRIES=5 \
-    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
-    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
-    NPM_CONFIG_NETWORK_TIMEOUT=600000 \
-    NPM_CONFIG_CACHE=/root/.npm
+    PORT=4173
 
-# Install deps from lockfile
+# Copy prebuilt server & client output and pruned production deps
+# (These are created by the new Drone "frontend-build" step)
+COPY build ./build
 COPY package.json package-lock.json ./
-RUN npm ci --loglevel=verbose || (cat /root/.npm/_logs/*-debug-*.log || true; exit 1)
+COPY node_modules ./node_modules
 
-# App sources
-COPY src/ ./src/
-COPY static/ ./static/
-COPY svelte.config.js .
-COPY vite.config.ts .
-COPY tsconfig.json .
-COPY tailwind.config.* postcss.config.* ./
-
-RUN npm run build
-
-# svelte-kit preview for test envs
 EXPOSE 4173
-CMD ["npm","run","preview","--","--host","0.0.0.0","--port","4173"]
+# adapter-node runs with: node build
+CMD ["node", "build"]
