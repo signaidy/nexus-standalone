@@ -28,10 +28,12 @@ steps:
       - cd frontend
       - npm ci
       - npm run build
-      - npm prune --omit=dev
+      - tar -czf build.tgz build
 
   - name: build-frontend
+    depends_on: [ frontend-build ]
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    timeout: 90      
     resources:
       requests: { cpu: 1, memory: 1Gi }
       limits:   { cpu: 4, memory: 4Gi }
@@ -99,7 +101,7 @@ steps:
       - cd frontend
       - npm ci
       - npm run build
-      - npm prune --omit=dev
+      - tar -czf build.tgz build
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
@@ -167,7 +169,7 @@ steps:
       - cd frontend
       - npm ci
       - npm run build
-      - npm prune --omit=dev
+      - tar -czf build.tgz build
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug

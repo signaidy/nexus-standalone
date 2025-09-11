@@ -2,16 +2,19 @@
 FROM mirror.gcr.io/library/node:20-alpine
 WORKDIR /usr/src/app
 
-# Run as production server on port 4173 to match your k8s probes
 ENV NODE_ENV=production \
-    PORT=4173
+    PORT=4173 \
+    npm_config_fund=false \
+    npm_config_audit=false \
+    npm_config_progress=false \
+    npm_config_update_notifier=false
 
-# Copy prebuilt server & client output and pruned production deps
-# (These are created by the new Drone "frontend-build" step)
-COPY build ./build
+# 1) Cacheable layer for runtime deps
 COPY package.json package-lock.json ./
-COPY node_modules ./node_modules
+RUN npm ci --omit=dev
+
+# 2) Copy the app
+ADD build.tgz ./
 
 EXPOSE 4173
-# adapter-node runs with: node build
 CMD ["node", "build"]
