@@ -31,7 +31,6 @@ steps:
       - tar -czf build.tgz build
 
   - name: build-frontend
-    depends_on: [ frontend-build ]
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     timeout: 90      
     resources:
