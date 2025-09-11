@@ -53,6 +53,11 @@ jobs:
         if: steps.changes.outputs.frontend == 'true'
         run: npm ci --cache "$NPM_CONFIG_CACHE" --registry=https://registry.npmjs.org/
 
+      - name: SvelteKit sync (generate .svelte-kit)
+        if: steps.changes.outputs.frontend == 'true'
+        run: npx svelte-kit sync
+
+
       - name: Run smoke tests + coverage
         if: steps.changes.outputs.frontend == 'true'
         run: npm run test:smoke:cov
@@ -117,7 +122,7 @@ jobs:
           to: ${{ secrets.ALERT_EMAIL_TO }}
           from: ${{ secrets.GMAIL_USERNAME }}
           html_body: |
-            <p><strong>Test Merge #${{ steps.outcome.outputs.PR_NUMBER }} pull request ${{ steps.outcome.outputs.STATE }}</strong></p>
+            <p><strong>Test Merge #${{ steps.outcome.outputs.PR_NUMBER }} pull request frontend ${{ steps.outcome.outputs.STATE }}</strong></p>
             <p>${{ steps.outcome.outputs.EMOJI }} <b>${{ steps.outcome.outputs.STATE_UPPER }}</b> — Quality Gate</p>
             <p><b>Repo:</b> ${{ github.repository }}<br/>
                <b>Branch:</b> ${{ github.head_ref || github.ref_name }}<br/>
