@@ -25,8 +25,9 @@ steps:
         memory: 4Gi
     command:
       - "--verbosity=debug"
-      - "--retries=3"
-      - "--retry-delay=10s"
+      - "--image-download-retry=5"
+      - "--image-fs-extract-retry=5"
+      - "--push-retry=5"
       - "--context=frontend"
       - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
