@@ -11,10 +11,10 @@ ENV NODE_ENV=production \
 
 # 1) Cacheable layer for runtime deps
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
 
 # 2) Copy the app
 ADD build.tgz ./
+ADD node_modules.tgz ./
 
 EXPOSE 4173
 CMD ["node", "build"]

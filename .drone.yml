@@ -28,7 +28,9 @@ steps:
       - cd frontend
       - npm ci
       - npm run build
+      - npm prune --omit=dev
       - tar -czf build.tgz build
+      - tar -czf node_modules.tgz node_modules
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
