@@ -1,16 +1,15 @@
 package SpectraSystems.Nexus.dto;
 
 import SpectraSystems.Nexus.models.User;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.extern.jackson.Jacksonized;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Jacksonized
 public class JwtAuthenticationResponse {
-    String token;
-    User user;
+    private String token;
+    private User user;
 }

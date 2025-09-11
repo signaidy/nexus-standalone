@@ -1,34 +1,23 @@
-# Include any files or directories that you don't want to be copied to your
-# container here (e.g., local build artifacts, temporary files, etc.).
-#
-# For more help, visit the .dockerignore file reference guide at
-# https://docs.docker.com/go/build-context-dockerignore/
+# node
+node_modules
+.npm
+.npmrc.local
 
-**/.classpath
-**/.dockerignore
-# **/.env
-**/.git
-**/.gitignore
-**/.project
-**/.settings
-**/.toolstarget
-**/.vs
-**/.vscode
-**/.next
-**/.cache
-**/*.*proj.user
-**/*.dbmdl
-**/*.jfm
-**/charts
-**/docker-compose*
-**/compose*
-**/target
-**/Dockerfile*
-**/node_modules
-**/npm-debug.log
-**/obj
-**/secrets.dev.yaml
-**/values.dev.yaml
-**/vendor
-LICENSE
-README.md
+# svelte/vite
+.svelte-kit
+dist
+build
+coverage
+
+# tests & local stuff
+tests
+.vitest
+*.log
+.vscode
+.idea
+
+# git & misc
+.git
+.gitignore
+Dockerfile
+.dockerignore
