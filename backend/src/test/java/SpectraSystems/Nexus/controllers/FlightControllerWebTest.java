@@ -31,18 +31,24 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import org.mockito.Answers;
+import org.springframework.security.core.userdetails.UserDetailsService;
+
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 class FlightControllerWebTest {
 
-    @Autowired MockMvc mvc;
+   @Autowired MockMvc mvc;
 
-    @MockBean FlightService flightService;
-    @MockBean FlightRepository flightRepository;
-    @MockBean ReservationRepository reservationRepository;
-    @MockBean UserService userService;
+   @MockBean FlightService flightService;
+   @MockBean FlightRepository flightRepository;
+   @MockBean ReservationRepository reservationRepository;
+   @MockBean(answer = Answers.RETURNS_DEEP_STUBS)
+   UserService userService;
+   @MockBean UserDetailsService userDetailsService;
+   @MockBean org.springframework.web.client.RestTemplate restTemplate;
 
     // email side effects are mocked
     @MockBean JavaMailSender emailSender;
@@ -110,14 +116,14 @@ class FlightControllerWebTest {
            .andExpect(status().isOk());
     }
 
-    @Test
-    void cities_ok() throws Exception {
-        when(flightService.getAllCitiesFromOtherBackend()).thenReturn(List.of());
-        mvc.perform(get("/nexus/flights/avianca/cities"))
-           .andExpect(status().isOk());
-        // called twice because of the if(true) block in controller
-        verify(flightService, times(2)).getAllCitiesFromOtherBackend();
-    }
+   @Test
+   void cities_ok() throws Exception {
+      when(flightService.getAllCitiesFromOtherBackend()).thenReturn(List.of());
+
+      mvc.perform(get("/nexus/flights/avianca/cities"))
+         .andExpect(status().isOk());
+      verify(flightService).getAllCitiesFromOtherBackend();
+   }
 
     // ---------- create / update / delete (secured) ----------
     @Test
