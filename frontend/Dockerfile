@@ -1,10 +1,17 @@
-FROM node:20
-WORKDIR /usr/src/app
+# syntax=docker/dockerfile:1
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+WORKDIR /app
 
-# No build-time API vars — we read at runtime via $env/dynamic/public
-COPY . .
-RUN --mount=type=cache,target=/root/.npm npm ci
-RUN npm run build
+ENV NODE_ENV=production \
+    PORT=4173
+
+# keep metadata for Node resolution
+COPY package.json package-lock.json ./
+
+# drop in prebuilt app + prepruned deps (from the Drone build step)
+ADD build.tgz ./
+ADD node_modules.tgz ./
 
 EXPOSE 4173
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "4173"]
+USER nonroot
+CMD ["/nodejs/bin/node", "build"]

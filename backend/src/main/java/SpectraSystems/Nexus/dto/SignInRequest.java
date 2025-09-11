@@ -1,15 +1,14 @@
 package SpectraSystems.Nexus.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.extern.jackson.Jacksonized;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Jacksonized
 public class SignInRequest {
-  String email;
-  String password;
+  private String email;
+  private String password;
 }

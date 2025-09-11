@@ -1,0 +1,232 @@
+---
+kind: pipeline
+type: kubernetes
+name: dev
+timeout: 120
+trigger: { branch: [dev], event: [push] }
+service_account_name: drone-pipeline
+
+steps:
+  - name: build-backend
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    command:
+    - "--context=backend"
+    - "--dockerfile=backend/Dockerfile"
+    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
+    - "--cache=true"
+
+  - name: frontend-build
+    image: node:20-bullseye
+    environment:
+      npm_config_fund: "false"
+      npm_config_audit: "false"
+      npm_config_progress: "false"
+      npm_config_fetch_retries: "8"
+      npm_config_fetch_retry_mintimeout: "30000"
+      npm_config_fetch_retry_maxtimeout: "180000"
+      npm_config_network_timeout: "600000"
+    commands:
+      - cd frontend
+      - npm ci
+      - npm run build
+      - tar -czf build.tgz build
+      - npm prune --omit=dev
+      - tar -czf node_modules.tgz node_modules
+      - du -sh build node_modules || true
+
+  - name: build-frontend
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    resources:
+      requests: { cpu: 2, memory: 2Gi }
+      limits:   { cpu: 4, memory: 4Gi }
+    entrypoint:
+      - /busybox/sh
+      - -c
+    command:
+      - |
+        set -euo pipefail
+        /kaniko/executor \
+          --verbosity=debug \
+          --context=frontend \
+          --dockerfile=frontend/Dockerfile \
+          --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA} \
+          --cache=true \
+          --cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache \
+          --snapshot-mode=time \
+          --single-snapshot \
+          --reproducible &
+
+        pid=$!
+        # heartbeat: print once a minute until Kaniko exits
+        while kill -0 "$pid" >/dev/null 2>&1; do
+          echo "[kaniko] still working: $(/busybox/date -u +%Y-%m-%dT%H:%M:%SZ)"
+          /busybox/sleep 60
+        done
+        wait "$pid"
+
+  - name: deploy
+    image: bitnami/kubectl:latest
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+    commands:
+      - mkdir -p kustom-override/dev
+      - |
+        cat > kustom-override/dev/kustomization.yaml <<EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../../k8s/overlays/dev
+        images:
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newTag: ${DRONE_COMMIT_SHA}
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newTag: ${DRONE_COMMIT_SHA}
+        EOF
+      - kubectl apply -k kustom-override/dev
+      - kubectl -n dev rollout status deploy/backend --timeout=180s
+      - kubectl -n dev rollout status deploy/frontend --timeout=180s
+
+---
+kind: pipeline
+type: kubernetes
+name: uat
+trigger: { branch: [uat], event: [push] }
+service_account_name: drone-pipeline
+steps:
+  - name: build-backend
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    command:
+    - "--context=backend"
+    - "--dockerfile=backend/Dockerfile"
+    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
+    - "--cache=true"
+
+  - name: frontend-build
+    image: node:20-bullseye
+    environment:
+      npm_config_fund: "false"
+      npm_config_audit: "false"
+      npm_config_progress: "false"
+      npm_config_fetch_retries: "8"
+      npm_config_fetch_retry_mintimeout: "30000"
+      npm_config_fetch_retry_maxtimeout: "180000"
+      npm_config_network_timeout: "600000"
+    commands:
+      - cd frontend
+      - npm ci
+      - npm run build
+      - tar -czf build.tgz build
+
+  - name: build-frontend
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    resources:
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { cpu: 4, memory: 4Gi }
+    command:
+      - "--verbosity=debug"
+      - "--context=frontend"
+      - "--dockerfile=frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
+      - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
+      - "--snapshot-mode=time"
+      - "--single-snapshot"
+      - "--reproducible"
+
+  - name: deploy
+    image: bitnami/kubectl:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - mkdir -p kustom-override/uat
+      - |
+        cat > kustom-override/uat/kustomization.yaml <<EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../../k8s/overlays/uat
+        images:
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newTag: ${DRONE_COMMIT_SHA}
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newTag: ${DRONE_COMMIT_SHA}
+        EOF
+      - kubectl apply -k kustom-override/uat
+      - kubectl -n uat rollout status deploy/backend --timeout=180s
+      - kubectl -n uat rollout status deploy/frontend --timeout=180s
+
+---
+kind: pipeline
+type: kubernetes
+name: main
+trigger: { branch: [main], event: [push] }
+service_account_name: drone-pipeline
+steps:
+  - name: build-backend
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    command:
+    - "--context=backend"
+    - "--dockerfile=backend/Dockerfile"
+    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
+    - "--cache=true"
+
+  - name: frontend-build
+    image: node:20-bullseye
+    environment:
+      npm_config_fund: "false"
+      npm_config_audit: "false"
+      npm_config_progress: "false"
+      npm_config_fetch_retries: "8"
+      npm_config_fetch_retry_mintimeout: "30000"
+      npm_config_fetch_retry_maxtimeout: "180000"
+      npm_config_network_timeout: "600000"
+    commands:
+      - cd frontend
+      - npm ci
+      - npm run build
+      - tar -czf build.tgz build
+
+  - name: build-frontend
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    resources:
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { cpu: 4, memory: 4Gi }
+    command:
+      - "--verbosity=debug"
+      - "--context=frontend"
+      - "--dockerfile=frontend/Dockerfile"
+      - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - "--cache=true"
+      - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
+      - "--snapshot-mode=time"
+      - "--single-snapshot"
+      - "--reproducible"
+
+      
+  - name: deploy
+    image: bitnami/kubectl:latest
+    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    commands:
+      - mkdir -p kustom-override/main
+      - |
+        cat > kustom-override/main/kustomization.yaml <<EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../../k8s/overlays/main
+        images:
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
+            newTag: ${DRONE_COMMIT_SHA}
+          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
+            newTag: ${DRONE_COMMIT_SHA}
+        EOF
+      - kubectl apply -k kustom-override/main
+      - kubectl -n main rollout status deploy/backend --timeout=180s
+      - kubectl -n main rollout status deploy/frontend --timeout=180s
