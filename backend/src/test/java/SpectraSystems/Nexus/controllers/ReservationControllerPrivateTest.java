@@ -65,19 +65,22 @@ class ReservationControllerPrivateTest {
     void sendPurchaseConfirmationEmail_userNotFound_throws_andDoesNotSend() throws Exception {
         when(userService.getUserById(99L)).thenReturn(Optional.empty());
 
-        RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
-            try {
-                invoke(controller, "sendPurchaseConfirmationEmail", new Class<?>[]{Long.class}, 99L);
-            } catch (InvocationTargetException ite) {
-                Throwable cause = ite.getCause();
-                if (cause instanceof RuntimeException re) throw re;
-                throw new RuntimeException(cause);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+        Exception toThrow;
+        try {
+            invoke(controller, "sendPurchaseConfirmationEmail", new Class<?>[]{Long.class}, 99L);
+            toThrow = null;
+        } catch (InvocationTargetException ite) {
+            Throwable cause = ite.getCause();
+            if (cause instanceof RuntimeException re) {
+                toThrow = re;
+            } else {
+                toThrow = new RuntimeException(cause);
             }
-        });
-        assertTrue(thrown.getMessage().contains("User with id 99"));
-
+        } catch (Exception e) {
+            toThrow = new RuntimeException(e);
+        }
+        assertNotNull(toThrow);
+        assertTrue(toThrow.getMessage().contains("User with id 99"));
         verify(emailSender, never()).send(any(MimeMessage.class));
     }
 

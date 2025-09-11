@@ -7,7 +7,6 @@ import SpectraSystems.Nexus.models.User;
 import SpectraSystems.Nexus.repositories.FlightRepository;
 import SpectraSystems.Nexus.repositories.ReservationRepository;
 
-import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -223,7 +222,8 @@ class ReservationServiceUnitTest {
     @Test
     void updateReservation_notFound_throws() {
         when(reservationRepository.findById(99L)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> service.updateReservation(99L, new Reservation()));
+        Reservation details = new Reservation();
+        assertThrows(ResourceNotFoundException.class, () -> service.updateReservation(99L, details));
         verify(reservationRepository, never()).save(any());
     }
 

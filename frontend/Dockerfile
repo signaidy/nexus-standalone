@@ -14,7 +14,7 @@ ENV NODE_ENV=production \
 
 # Install deps from lockfile
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund --prefer-offline --progress=false
+RUN npm ci --loglevel=verbose || (cat /root/.npm/_logs/*-debug-*.log || true; exit 1)
 
 # App sources
 COPY src/ ./src/

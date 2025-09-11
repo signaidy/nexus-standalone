@@ -117,8 +117,9 @@ class UserServiceTest {
     @Test
     void updateUser_notFound_throws() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        User user = new User();
         assertThrows(ResourceNotFoundException.class,
-                () -> service.updateUser(99L, new User()));
+                () -> service.updateUser(99L, user));
         verify(userRepository, never()).save(any());
     }
 
@@ -136,7 +137,8 @@ class UserServiceTest {
         User u = User.builder().id(1L).email("x@y.com").password("pw").role(Role.ROLE_USER).build();
         when(userRepository.findByEmail("x@y.com")).thenReturn(Optional.of(u));
 
-        UserDetails out = service.userDetailsService().loadUserByUsername("x@y.com");
+        org.springframework.security.core.userdetails.UserDetailsService uds = service.userDetailsService();
+        UserDetails out = uds.loadUserByUsername("x@y.com");
         assertSame(u, out); // our User implements UserDetails
         assertEquals("x@y.com", out.getUsername());
     }
@@ -144,8 +146,9 @@ class UserServiceTest {
     @Test
     void userDetailsService_loadByUsername_missing_throws() {
         when(userRepository.findByEmail("nope")).thenReturn(Optional.empty());
+        org.springframework.security.core.userdetails.UserDetailsService uds = service.userDetailsService();
         assertThrows(UsernameNotFoundException.class,
-                () -> service.userDetailsService().loadUserByUsername("nope"));
+                () -> uds.loadUserByUsername("nope"));
     }
 
     // ---------- save(new/existing) timestamps ----------

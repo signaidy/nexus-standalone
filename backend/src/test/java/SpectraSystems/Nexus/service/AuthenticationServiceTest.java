@@ -72,8 +72,7 @@ class AuthenticationServiceTest {
 
         when(passwordEncoder.encode("rawpass")).thenReturn("hashed");
         when(userService.save(any(User.class))).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            return u; // return saved user
+            return inv.getArgument(0); // return saved user
         });
         when(jwtService.generateToken(any(User.class))).thenReturn("JWT123");
 

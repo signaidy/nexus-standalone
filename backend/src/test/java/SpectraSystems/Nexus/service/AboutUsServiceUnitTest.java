@@ -136,7 +136,8 @@ class AboutUsServiceUnitTest {
     @Test
     void updateAboutUs_notFound_throws() {
         when(repo.findById(42L)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> service.updateAboutUs(42L, new Aboutus()));
+        Aboutus aboutus = new Aboutus();
+        assertThrows(ResourceNotFoundException.class, () -> service.updateAboutUs(42L, aboutus));
         verify(repo, never()).save(any());
     }
 }

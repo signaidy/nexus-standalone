@@ -120,8 +120,8 @@ class FlightServiceUnitTest {
     @Test
     void updateFlight_notFound_throws() {
         when(flightRepository.findById(99L)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class,
-                () -> service.updateFlight(99L, new Flight()));
+        Flight flight = new Flight();
+        assertThrows(ResourceNotFoundException.class, () -> service.updateFlight(99L, flight));
         verify(flightRepository, never()).save(any());
     }
 
