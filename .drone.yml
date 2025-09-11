@@ -7,7 +7,7 @@ service_account_name: drone-pipeline
 
 steps:
   - name: build-backend
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     command:
     - "--context=backend"
     - "--dockerfile=backend/Dockerfile"
@@ -15,7 +15,7 @@ steps:
     - "--cache=true"
 
   - name: build-frontend
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
       requests:
         cpu: 1
@@ -25,6 +25,8 @@ steps:
         memory: 4Gi
     command:
       - "--verbosity=debug"
+      - "--retries=3"
+      - "--retry-delay=10s"
       - "--context=frontend"
       - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
@@ -64,7 +66,7 @@ trigger: { branch: [uat], event: [push] }
 service_account_name: drone-pipeline
 steps:
   - name: build-backend
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     command:
     - "--context=backend"
     - "--dockerfile=backend/Dockerfile"
@@ -72,7 +74,7 @@ steps:
     - "--cache=true"
 
   - name: build-frontend
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
       requests:
         cpu: 1
@@ -118,7 +120,7 @@ trigger: { branch: [main], event: [push] }
 service_account_name: drone-pipeline
 steps:
   - name: build-backend
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     command:
     - "--context=backend"
     - "--dockerfile=backend/Dockerfile"
@@ -126,7 +128,7 @@ steps:
     - "--cache=true"
 
   - name: build-frontend
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
       requests:
         cpu: 1
