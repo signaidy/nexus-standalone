@@ -29,9 +29,11 @@ steps:
       - cd frontend
       - npm ci
       - npm run build
-      - tar -czf build.tgz build
-      - npm prune --omit=dev
-      - tar -czf node_modules.tgz node_modules
+      - npm prune --omit=dev --omit=optional
+      - npm dedupe --omit=dev || true
+      - tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf build.tgz build
+      - tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf node_modules.tgz node_modules
+      - ls -lh build.tgz node_modules.tgz || true
       - du -sh build node_modules || true
 
   - name: build-frontend
@@ -53,7 +55,6 @@ steps:
           --cache=true \
           --cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache \
           --snapshot-mode=time \
-          --single-snapshot \
           --reproducible &
 
         pid=$!

@@ -10,4 +10,13 @@ export default defineConfig({
     port: 3000,
   },
   plugins: [sveltekit()],
+  build: { sourcemap: false },
+  ssr: {
+    noExternal: [
+      'lucide-svelte',
+      'bits-ui',
+      'cmdk-sv',
+      'tailwind-variants'
+    ]
+  }
 });
