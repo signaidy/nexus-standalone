@@ -2,6 +2,7 @@
 kind: pipeline
 type: kubernetes
 name: dev
+timeout: 120
 trigger: { branch: [dev], event: [push] }
 service_account_name: drone-pipeline
 
@@ -34,7 +35,6 @@ steps:
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    timeout: 90      
     resources:
       requests: { cpu: 2, memory: 2Gi }
       limits:   { cpu: 4, memory: 4Gi }
