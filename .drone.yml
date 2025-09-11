@@ -21,17 +21,12 @@ steps:
       limits:   { cpu: 2, memory: 4Gi }
     command:
       - "--verbosity=debug"
-      - "--image-download-retry=5"
-      - "--image-fs-extract-retry=5"
-      - "--push-retry=5"
-      - "--snapshot-mode=time"
-      - "--single-snapshot" 
-      - "--compressed-caching=false"
-      - "--no-push-cache"
       - "--context=frontend"
       - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
+      - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
+      - "--snapshot-mode=time"
 
 
 
@@ -79,18 +74,16 @@ steps:
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
-      requests:
-        cpu: 1
-        memory: 1Gi
-      limits:
-        cpu: 2
-        memory: 4Gi
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { cpu: 2, memory: 4Gi }
     command:
       - "--verbosity=debug"
       - "--context=frontend"
       - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
+      - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
+      - "--snapshot-mode=time"
 
   - name: deploy
     image: bitnami/kubectl:latest
@@ -133,18 +126,16 @@ steps:
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     resources:
-      requests:
-        cpu: 1
-        memory: 1Gi
-      limits:
-        cpu: 2
-        memory: 4Gi
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { cpu: 2, memory: 4Gi }
     command:
       - "--verbosity=debug"
       - "--context=frontend"
       - "--dockerfile=frontend/Dockerfile"
       - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}"
       - "--cache=true"
+      - "--cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache"
+      - "--snapshot-mode=time"
 
       
   - name: deploy
