@@ -16,6 +16,13 @@ steps:
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
+    resources:
+      requests:
+        cpu: 1
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
     command:
       - "--verbosity=debug"
       - "--context=frontend"
@@ -66,6 +73,13 @@ steps:
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
+    resources:
+      requests:
+        cpu: 1
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
     command:
       - "--verbosity=debug"
       - "--context=frontend"
@@ -113,6 +127,13 @@ steps:
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:latest
+    resources:
+      requests:
+        cpu: 1
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
     command:
       - "--verbosity=debug"
       - "--context=frontend"
