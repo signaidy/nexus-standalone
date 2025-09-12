@@ -87,14 +87,14 @@ Autopilot can’t be “stopped”, but you can drop runtime cost to near-zero b
 * removing or converting **LoadBalancer** Services (to avoid LB charges)
 * keeping PVCs (storage charges remain)
 
-> Namespaces we use: `dev`, `uat`, `main`, and **`db`** (Oracle).
+> Namespaces we use: `dev`, `uat`, `main`, `ci` and **`db`** (Oracle).
 
 ### Pause (scale everything to 0 + remove LBs)
 
 **PowerShell**
 
 ```powershell
-$namespaces = @('dev','uat','main','db')
+$namespaces = @('dev','uat','main','db', 'ci')
 
 # 1) Scale Deployments/StatefulSets to 0
 foreach ($ns in $namespaces) {
