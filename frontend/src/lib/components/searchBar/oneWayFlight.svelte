@@ -70,7 +70,7 @@
   </div>
   <div class="flex flex-col gap-y-2">
     <div class="font-bold flex gap-x-2 items-center ml-6">
-      Urbs Aeterna - Sept 12 2024 - Magic -UAT<UsersRound class="shrink-0 w-5 h-5" />
+      Urbs Aeterna - Sept 12 2024 - Magic -MAIN<UsersRound class="shrink-0 w-5 h-5" />
     </div>
     <NumberPicker bind:passengers />
   </div>
