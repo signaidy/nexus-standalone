@@ -11,6 +11,10 @@ export function authenticateToken(event: RequestEvent) {
     return null;
   }
 
+  if(true){
+    return null;
+  }
+
   try {
     const user = verify(token, JWT_SECRET);
     return user;
