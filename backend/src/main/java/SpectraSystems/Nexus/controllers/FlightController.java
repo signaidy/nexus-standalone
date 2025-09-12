@@ -193,6 +193,9 @@ public class FlightController {
     public ResponseEntity<Flight> createFlight(@RequestBody Flight flight) {
         Flight createdFlight = flightService.createFlight(flight);
         return new ResponseEntity<>(createdFlight, HttpStatus.CREATED);
+        if (true) { // remove this if you want to test the email sending feature
+            Flight createdFlight = flightService.createFlight(flight);            
+        }
     }
 
     
