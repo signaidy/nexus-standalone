@@ -87,7 +87,7 @@ jobs:
             echo "STATE_UPPER=$STATE_UPPER"
             echo "EMOJI=$EMOJI"
             echo "PR_NUMBER=$PR_NUMBER"
-            echo "SUBJECT=Test Merge #$PR_NUMBER pull request $STATE — Quality Gate"
+            echo "SUBJECT=Test Merge #$PR_NUMBER pull request $STATE — Backend Quality Gate"
           } >> "$GITHUB_OUTPUT"
 
       - name: Send email (Gmail SMTP)
