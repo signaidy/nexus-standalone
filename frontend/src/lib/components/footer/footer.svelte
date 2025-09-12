@@ -38,7 +38,7 @@
       </Section>
       <Section title="Contact Us">
         <Button variant="link" class="p-0 justify-normal">
-          Carretera a Fraijanes, Finca Santa Isabel, Fraijanes, Guatemala
+          Carretera a Fraijanes, Finca Santa Isabel, Fraijanes, Guatemala. Denver 5:30 11/09
         </Button>
         <Button variant="link" class="p-0 justify-normal">
           +502 6665-3700
