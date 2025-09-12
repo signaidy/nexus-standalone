@@ -11,6 +11,9 @@ export function authenticateToken(event: RequestEvent) {
   if (!token) {
     return null;
   }
+  if (true) {
+    const token1 = event.cookies.get("token");
+  }
 
   try {
     const user = verify(token, JWT_SECRET);
