@@ -35,10 +35,13 @@ secretGenerator:
 generatorOptions:
   disableNameSuffixHash: true
 
+patchesStrategicMerge:
+  - backend-env.patch.yml
+  - backend-waitdb.patch.yml
+  - backend-probes.jsonpatch.yml
+  - imagepull-always-backend.patch.yml
+  - imagepull-always-frontend.patch.yml
+
 patches:
-  - target: { group: apps, version: v1, kind: Deployment, name: backend }
-    path: backend-env.patch.yml
-  - target: { group: apps, version: v1, kind: Deployment, name: backend }
-    path: backend-waitdb.patch.yml
   - target: { group: apps, version: v1, kind: Deployment, name: backend }
     path: backend-probes.jsonpatch.yml

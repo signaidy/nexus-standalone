@@ -35,23 +35,14 @@ secretGenerator:
 generatorOptions:
   disableNameSuffixHash: true
 
+patchesStrategicMerge:
+  - backend-env.patch.yml
+  - backend-waitdb.patch.yml
+  - backend-probes.jsonpatch.yml
+  - imagepull-always-backend.patch.yml
+  - imagepull-always-frontend.patch.yml
+
 patches:
-  # Strategic-merge patch (YAML with apiVersion/kind) for env vars
-  - target:
-      group: apps
-      version: v1
-      kind: Deployment
-      name: backend
-    path: backend-env.patch.yml
-
-  # Strategic-merge patch to add the DB wait initContainer
-  - target:
-      group: apps
-      version: v1
-      kind: Deployment
-      name: backend
-    path: backend-waitdb.patch.yml
-
   # JSON6902 patch to REPLACE probes with tcp sockets
   - target:
       group: apps
