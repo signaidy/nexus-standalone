@@ -39,6 +39,9 @@ generatorOptions:
 patchesStrategicMerge:
   - backend-env.patch.yml
   - backend-waitdb.patch.yml
+  - backend-probes.jsonpatch.yml
+  - imagepull-always-backend.patch.yml
+  - imagepull-always-frontend.patch.yml
 
 # Use JSON6902 patch to fully replace probes with tcpSocket versions
 patches:
