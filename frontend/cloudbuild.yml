@@ -1,0 +1,24 @@
+steps:
+  - name: node:20-bullseye
+    dir: frontend
+    entrypoint: bash
+    args:
+      - -euxo
+      - pipefail
+      - -c
+      - >
+        npm ci &&
+        npm run build &&
+        npm prune --omit=dev --omit=optional &&
+        npm dedupe --omit=dev || true &&
+        tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf build.tgz build &&
+        tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf node_modules.tgz node_modules &&
+        du -sh build node_modules || true &&
+        ls -lh build.tgz node_modules.tgz || true
+
+  - name: gcr.io/cloud-builders/docker
+    dir: frontend
+    args: ["build","-t","$_IMAGE","."]
+images:
+  - "$_IMAGE"
+timeout: "3600s"
