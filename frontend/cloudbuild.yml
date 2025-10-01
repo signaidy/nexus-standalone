@@ -2,6 +2,8 @@ steps:
   - name: node:20-bullseye
     dir: frontend
     entrypoint: bash
+    env:
+      - PUBLIC_BACKEND_URL=/nexus
     args:
       - -euxo
       - pipefail

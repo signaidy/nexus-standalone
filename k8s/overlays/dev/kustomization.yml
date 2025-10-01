@@ -4,12 +4,10 @@ kind: Kustomization
 namespace: dev
 resources:
   - ../../base
-
-replicas:
-  - name: backend
-    count: 1
-  - name: frontend
-    count: 1
+  - ingressclass-gce.yml
+  - backend-backendconfig.yml
+  - frontend-backendconfig.yml
+  - ingress.yml
 
 images:
   - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
@@ -17,37 +15,81 @@ images:
   - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend
     newTag: dev
 
+replicas:
+  - name: backend
+    count: 1
+  - name: frontend
+    count: 1
+
+generatorOptions:
+  disableNameSuffixHash: true
+
 configMapGenerator:
   - name: nexus-backend-config
     literals:
       - SPRING_PROFILES_ACTIVE=dev
       - DB_URL=jdbc:oracle:thin:@//oracle.db.svc.cluster.local:1521/FREEPDB1
-  - name: nexus-frontend-config    
-    behavior: merge
+  - name: nexus-frontend-config
     literals:
-      - PUBLIC_BACKEND_URL=http://backend:8080/nexus
+      - PUBLIC_BACKEND_URL=/nexus
+      - BACKEND_INTERNAL_URL=http://backend:8080/nexus
 
 secretGenerator:
   - name: nexus-backend-secrets
     envs:
       - secrets.env
 
-generatorOptions:
-  disableNameSuffixHash: true
-
-# Keep your existing strategic-merge patches (env + wait-db)
-patchesStrategicMerge:
-  - backend-env.patch.yml
-  - backend-waitdb.patch.yml
-  - backend-probes.jsonpatch.yml
-  - imagepull-always-backend.patch.yml
-  - imagepull-always-frontend.patch.yml
-
-# Use JSON6902 patch to fully replace probes with tcpSocket versions
 patches:
-  - target:
+  - path: backend-env.patch.yml
+    target:
       group: apps
       version: v1
       kind: Deployment
       name: backend
-    path: backend-probes.jsonpatch.yml
+
+  - path: backend-waitdb.patch.yml
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: backend
+
+  - path: backend-probes.jsonpatch.yml
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: backend
+  
+  - target: { group: "", version: v1, kind: Service, name: frontend }
+    patch: |-
+      - op: add
+        path: /metadata/annotations/cloud.google.com~1neg
+        value: '{"ingress": true}'
+      - op: add
+        path: /spec/ports/0/name
+        value: http
+
+  - target: { group: "", version: v1, kind: Service, name: backend }
+    patch: |-
+      - op: add
+        path: /metadata/annotations/cloud.google.com~1neg
+        value: '{"ingress": true}'
+      - op: add
+        path: /spec/ports/0/name
+        value: http
+
+  
+  # Frontend Service: attach BackendConfig
+  - target: { group: "", version: v1, kind: Service, name: frontend }
+    patch: |-
+      - op: add
+        path: /metadata/annotations/beta.cloud.google.com~1backend-config
+        value: '{"default":"frontend-bc"}'
+
+  # Backend Service: attach BackendConfig
+  - target: { group: "", version: v1, kind: Service, name: backend }
+    patch: |-
+      - op: add
+        path: /metadata/annotations/beta.cloud.google.com~1backend-config
+        value: '{"default":"backend-bc"}'

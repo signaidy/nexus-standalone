@@ -35,7 +35,7 @@ secretGenerator:
 generatorOptions:
   disableNameSuffixHash: true
 
-patchesStrategicMerge:
+patches:
   - backend-env.patch.yml
   - backend-waitdb.patch.yml
   - backend-probes.jsonpatch.yml
