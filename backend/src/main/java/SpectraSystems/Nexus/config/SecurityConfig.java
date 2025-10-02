@@ -64,8 +64,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // health & auth – allow both with/without /nexus
-                .requestMatchers("/healthz", "/nexus/healthz").permitAll()
+                // health & auth (both with and without /nexus)
+                .requestMatchers("/healthz", "/nexus/healthz", "/actuator/health", "/nexus/actuator/health").permitAll()
                 .requestMatchers("/auth/**", "/nexus/auth/**").permitAll()
 
                 // preflight
@@ -73,20 +73,17 @@ public class SecurityConfig {
 
                 // public GET APIs (both forms)
                 .requestMatchers(HttpMethod.GET,
-                    "/flights/**", "/reservations/**", "/aboutus/**",
-                    "/nexus/flights/**", "/nexus/reservations/**", "/nexus/aboutus/**"
+                    "/aboutus/**", "/nexus/aboutus/**",
+                    "/flights/**", "/nexus/flights/**",
+                    "/reservations/**", "/nexus/reservations/**"
                 ).permitAll()
 
                 // public PUTs (both forms)
                 .requestMatchers(HttpMethod.PUT,
-                    "/flights/deactivateTicket/**",
-                    "/flights/deactivate/**",
-                    "/reservations/cancel/**",
-                    "/reservations/cancelHotel/**",
-                    "/nexus/flights/deactivateTicket/**",
-                    "/nexus/flights/deactivate/**",
-                    "/nexus/reservations/cancel/**",
-                    "/nexus/reservations/cancelHotel/**"
+                    "/flights/deactivateTicket/**", "/nexus/flights/deactivateTicket/**",
+                    "/flights/deactivate/**",       "/nexus/flights/deactivate/**",
+                    "/reservations/cancel/**",      "/nexus/reservations/cancel/**",
+                    "/reservations/cancelHotel/**", "/nexus/reservations/cancelHotel/**"
                 ).permitAll()
 
                 .anyRequest().authenticated()

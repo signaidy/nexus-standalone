@@ -3,7 +3,7 @@
   import { env } from '$env/dynamic/public';
 
   onMount(async () => {
-    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const base = env.PUBLIC_BACKEND_URL || '/nexus';
     const response = await fetch(`${base}/providers`);
     const data = await response.json();
     console.log(data); 

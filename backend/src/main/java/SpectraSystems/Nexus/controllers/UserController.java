@@ -11,7 +11,7 @@ import SpectraSystems.Nexus.services.UserService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/nexus/users")
+@RequestMapping("/users")
 public class UserController {
 
     private final UserService userService;

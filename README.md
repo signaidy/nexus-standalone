@@ -49,6 +49,247 @@ gcloud compute instances start sonar-vm --zone us-central1-f
 # Open: http://<STATIC_IP>:9000   (admin/admin on first run)
 ```
 
+## 🔁 Zero-to-Redeploy (Images via Kustomize) — PowerShell
+
+> Use Kustomize to pin images in the overlay so future `kubectl apply -k ...` never reverts you.
+
+### Prereqs
+- `gcloud`, `kubectl`
+- **`kustomize` CLI installed**  
+  - Chocolatey: `choco install kustomize -y`  
+  - Scoop: `scoop install kustomize`
+- `kubectl` context pointing to the cluster (namespace e.g. `dev`)
+
+### 0) Common variables
+
+```powershell
+# --- GCP / K8s ---
+$PROJECT   = "spectra-kube"
+$REGION    = "us-central1"
+$REPO      = "nexus"
+$NS        = "dev"
+$STAMP     = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss")
+
+# --- Images (new tags minted each time) ---
+$BACK_IMG  = "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-backend:manual-$STAMP"
+$FRONT_IMG = "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-frontend:manual-$STAMP"
+
+# --- (Optional) Ingress/LB URL (after Ingress is ready) ---
+$IP = "http://<LOAD_BALANCER_IP>"   # e.g. http://34.49.133.125
+````
+
+### 1) Build & push images (Cloud Build)
+
+**Backend (Dockerfile under `backend/`):**
+
+```powershell
+gcloud builds submit backend --tag $BACK_IMG --timeout=3600s
+```
+
+**Frontend (uses `frontend/cloudbuild.yml`, which creates build artifacts and image):**
+
+```powershell
+gcloud builds submit `
+  --config=frontend/cloudbuild.yml `
+  --substitutions=_IMAGE=$FRONT_IMG `
+  --timeout=3600s `
+  .
+```
+
+### 2) Pin images in the overlay (Kustomize = source of truth)
+
+```powershell
+Push-Location k8s/overlays/$NS
+
+kustomize edit set image `
+  us-central1-docker.pkg.dev/$PROJECT/$REPO/nexus-backend=$BACK_IMG
+
+kustomize edit set image `
+  us-central1-docker.pkg.dev/$PROJECT/$REPO/nexus-frontend=$FRONT_IMG
+
+# (Optional) preview the rendered manifests
+kubectl kustomize . | Select-String -Pattern 'image:'
+
+Pop-Location
+```
+
+> **Why:** Avoids drift. If you only run `kubectl set image ...`, the next `kubectl apply -k ...`
+> will snap back to whatever `kustomization.yml` says. Updating via `kustomize edit set image`
+> keeps manifests authoritative.
+
+### 3) Apply
+
+```powershell
+kubectl apply -k k8s/overlays/$NS
+kubectl -n $NS rollout status deploy/backend  --timeout=180s
+kubectl -n $NS rollout status deploy/frontend --timeout=180s
+```
+
+### 4) Verify the running images (Windows-friendly JSONPath)
+
+```powershell
+kubectl -n $NS get deploy backend  -o jsonpath='{.spec.template.spec.containers[?(@.name=="backend")].image}';  echo
+kubectl -n $NS get deploy frontend -o jsonpath='{.spec.template.spec.containers[?(@.name=="frontend")].image}'; echo
+```
+
+### 5) Quick smoke checks
+
+**In-cluster → backend Service:**
+
+```powershell
+kubectl -n $NS run chk --rm -it --image=curlimages/curl:8.7.1 --restart=Never -- `
+  sh -lc "curl -sS -o /dev/null -w '%{http_code}\n' http://backend.$NS.svc.cluster.local:8080/nexus/healthz"
+```
+
+**Through the LB (after Ingress is healthy):**
+
+```powershell
+kubectl -n $NS run chk2 --rm -it --image=curlimages/curl:8.7.1 --restart=Never -- `
+  sh -lc "curl -sS -o /dev/null -w '%{http_code}\n' $IP/nexus/healthz"
+```
+
+**Frontend env sanity:**
+
+```powershell
+kubectl -n $NS get deploy/frontend `
+  -o jsonpath="{range .spec.template.spec.containers[?(@.name=='frontend')].env[*]}{.name}={.value}{'\n'}{end}"
+# Expect: PUBLIC_BACKEND_URL=/nexus
+```
+
+---
+
+### Notes & Tips
+
+* Keep `PUBLIC_BACKEND_URL=/nexus` in the frontend Deployment (overlay sets it).
+* Health path used by GCLB: `/nexus/healthz`.
+* If you must hot-swap a pod image with `kubectl set image`, **also** run the
+  `kustomize edit set image` step so future applies don’t revert you.
+  
+### 2) Frontend (SvelteKit)
+
+**Build & push (uses `frontend/cloudbuild.yml`, which creates `build.tgz` etc.)**
+
+```powershell
+gcloud builds submit `
+  --config=frontend/cloudbuild.yml `
+  --substitutions=_IMAGE=$FRONT_IMG `
+  --timeout=3600s `
+  .
+```
+
+**Roll out to K8s**
+
+```powershell
+kubectl -n $NS set image deploy/frontend frontend=$FRONT_IMG
+kubectl -n $NS rollout status deploy/frontend --timeout=180s
+```
+
+**Verify env for API base**
+
+```powershell
+kubectl -n $NS get deploy/frontend `
+  -o jsonpath="{range .spec.template.spec.containers[?(@.name=='frontend')].env[*]}{.name}={.value}{'\n'}{end}"
+# Expect: PUBLIC_BACKEND_URL=/nexus
+```
+
+**Smoke tests (from your browser / LB)**
+
+* `GET $IP/nexus/aboutus/1` → **200 + JSON**
+* Login form should POST to `POST $IP/nexus/auth/login` and set cookies.
+
+---
+
+### 3) Oracle (XE) database
+
+> If you maintain a custom Oracle image, build it; otherwise skip to “Roll out”.
+
+**(Optional) Build & push**
+
+```powershell
+# If you have a local Dockerfile under oracle/
+gcloud builds submit oracle --tag $ORA_IMG --timeout=3600s
+```
+
+**Roll out to K8s**
+(choose the matching workload kind/name you use — `statefulset/oracle` is common)
+
+```powershell
+# If it's a StatefulSet
+kubectl -n $NS set image statefulset/oracle oracle=$ORA_IMG
+kubectl -n $NS rollout status statefulset/oracle --timeout=300s
+
+# Or if it's a Deployment
+# kubectl -n $NS set image deploy/oracle oracle=$ORA_IMG
+# kubectl -n $NS rollout status deploy/oracle --timeout=300s
+```
+
+**Connectivity check from backend Pod**
+
+```powershell
+kubectl -n $NS exec deploy/backend -- sh -lc \
+  "getent hosts oracle.$NS.svc.cluster.local || true; echo $SPRING_DATASOURCE_URL"
+```
+
+> Ensure `nexus-backend-config` has the right `DB_URL` (Oracle JDBC) and the Secret has `DB_USER/DB_PASS`.
+
+---
+
+### 4) Drone (CI) — server & runner
+
+> If you deploy Drone in-cluster, this updates the images. Replace with upstream tags if you don’t build custom images:
+>
+> * Server: `drone/drone:2`
+> * Kube runner: `drone/drone-runner-kube:1`
+
+**(Optional) Build & push**
+
+```powershell
+# Only if you have local Dockerfiles for Drone:
+# gcloud builds submit drone/server  --tag $DRONE_IMG   --timeout=3600s
+# gcloud builds submit drone/runner  --tag $RUNNER_IMG  --timeout=3600s
+```
+
+**Roll out to K8s**
+
+```powershell
+# Server
+# (use your actual deployment name; `drone` is typical)
+kubectl -n $NS set image deploy/drone drone=$DRONE_IMG
+kubectl -n $NS rollout status deploy/drone --timeout=180s
+
+# Runner (Kubernetes runner)
+kubectl -n $NS set image deploy/drone-runner drone-runner=$RUNNER_IMG
+kubectl -n $NS rollout status deploy/drone-runner --timeout=180s
+```
+
+**Secrets to have in place**
+
+* `DRONE_RPC_SECRET`, `DRONE_SERVER_HOST`, `DRONE_SERVER_PROTO`, VCS client/secret (e.g., GitHub), etc., typically provided via `Secret` + `envFrom` in the Deployments.
+
+---
+
+### 5) Troubleshooting quickies
+
+```powershell
+# Describe Ingress and watch address assignment
+kubectl -n $NS describe ingress nexus
+kubectl -n $NS get ingress nexus -w
+
+# NEG status (for GCLB)
+kubectl -n $NS get svc backend  -o jsonpath='{.metadata.annotations.cloud\.google\.com/neg-status}'; echo
+kubectl -n $NS get svc frontend -o jsonpath='{.metadata.annotations.cloud\.google\.com/neg-status}'; echo
+
+# Check Pods
+kubectl -n $NS get pods -o wide
+kubectl -n $NS logs deploy/backend   --tail=200
+kubectl -n $NS logs deploy/frontend  --tail=200
+```
+
+**Common signals**
+
+* `502` from `$IP/nexus/*` but `200` in-cluster → wait for health checks/NEGs or verify `BackendConfig` paths (`/nexus/healthz`).
+* `403` on `/nexus/auth/*` → verify Spring Security matchers include `/auth/**` and controllers (or `server.servlet.context-path`) line up with `/nexus`.
+
 ### Stop the VM (keeps data and IP)
 
 ```bash

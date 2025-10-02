@@ -76,5 +76,4 @@ public class SeedDataConfig implements CommandLineRunner {
         log.debug("created AboutUs info - {}", admin);
       }
     }
-
 }

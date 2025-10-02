@@ -2,7 +2,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import { env } from '$env/dynamic/public';
 
 export function load({ locals, url }) {
-  const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+  const base = env.PUBLIC_BACKEND_URL || '/nexus';
   async function getOneWayFlights() {
     const response = await fetch(
       `${base}/flights/avianca/one-way-flights?${url.searchParams.toString()}`,
@@ -55,7 +55,7 @@ export function load({ locals, url }) {
 
 export const actions = {  
   createCommentary: async ({ request, cookies, locals }) => {
-    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const base = env.PUBLIC_BACKEND_URL || '/nexus';
     const data = await request.formData();
     const token = cookies.get('token');
     const user = locals.user.firstName;
@@ -100,7 +100,7 @@ export const actions = {
     }
   },
   createRating: async ({ request }) => {    
-    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const base = env.PUBLIC_BACKEND_URL || '/nexus';
     const data = await request.formData();
     try {
       const response = await fetch(`${base}/flights/create-rating`, {
