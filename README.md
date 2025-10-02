@@ -319,131 +319,134 @@ docker compose down
 
 ---
 
-## Pause / Resume cluster workloads (“dockers”) in GKE
+## Pause / Resume cluster workloads (“dockers”) in GKE — without losing your images
 
-Autopilot can’t be “stopped”, but you can drop runtime cost to near-zero by:
+Autopilot can’t be “stopped”, but you can drop runtime cost to near-zero by scaling workloads to 0.  
+**Important:** scaling does **not** change images. Re-applying kustomize **can** change images if your overlay pins an older tag. Use one of the two flows below.
 
-* scaling all **Deployments**/**StatefulSets** to **0**
-* **suspending CronJobs**
-* removing or converting **LoadBalancer** Services (to avoid LB charges)
-* keeping PVCs (storage charges remain)
+> Namespaces we use: `dev`, `uat`, `main`, `ci`, and **`db`** (Oracle).
 
-> Namespaces we use: `dev`, `uat`, `main`, `ci` and **`db`** (Oracle).
+---
 
-### Pause (scale everything to 0 + remove LBs)
+### A) Pause / Resume by **scaling only** (safe: keeps current images)
 
 **PowerShell**
 
 ```powershell
-$namespaces = @('dev','uat','main','db', 'ci')
+$namespaces = @('dev','uat','main','db','ci')
 
-# 1) Scale Deployments/StatefulSets to 0
+# Pause
 foreach ($ns in $namespaces) {
   kubectl -n $ns scale deploy --all --replicas=0 2>$null
   kubectl -n $ns scale statefulset --all --replicas=0 2>$null
   kubectl -n $ns patch cronjob --all --type merge -p '{\"spec\":{\"suspend\":true}}' 2>$null
 }
 
-# 2) Convert any LoadBalancer Services to ClusterIP (avoids LB billing)
-$lbs = kubectl get svc -A --field-selector spec.type=LoadBalancer -o json | ConvertFrom-Json
-foreach ($s in $lbs.items) {
-  $ns = $s.metadata.namespace; $name = $s.metadata.name
-  kubectl -n $ns patch svc $name -p '{\"spec\":{\"type\":\"ClusterIP\"}}'
+# Resume
+foreach ($ns in $namespaces) {
+  kubectl -n $ns scale deploy --all --replicas=1 2>$null
+  kubectl -n $ns scale statefulset --all --replicas=1 2>$null
+  kubectl -n $ns patch cronjob --all --type merge -p '{\"spec\":{\"suspend\":false}}' 2>$null
 }
 
-# 3) Verify
-kubectl get pods -A
-kubectl get svc -A --field-selector spec.type=LoadBalancer
+# Optional: bounce pods without changing replicas/images
+$NS="dev"
+kubectl -n $NS rollout restart deploy/backend
+kubectl -n $NS rollout restart deploy/frontend
 ```
 
-**Bash (alternative)**
+**Bash**
 
 ```bash
-namespaces=(dev uat main db)
+namespaces=(dev uat main db ci)
 
+# Pause
 for ns in "${namespaces[@]}"; do
   kubectl -n "$ns" scale deploy --all --replicas=0 || true
   kubectl -n "$ns" scale statefulset --all --replicas=0 || true
   kubectl -n "$ns" patch cronjob --all --type merge -p '{"spec":{"suspend":true}}' || true
 done
 
+# Resume
 for ns in "${namespaces[@]}"; do
-  for svc in $(kubectl -n "$ns" get svc --field-selector spec.type=LoadBalancer -o name); do
-    kubectl -n "$ns" patch "$svc" -p '{"spec":{"type":"ClusterIP"}}'
-  done
-done
-
-kubectl get pods -A
-kubectl get svc -A --field-selector spec.type=LoadBalancer
-```
-
-### Resume (bring workloads back)
-
-**Option 1 — Re-apply manifests (recommended)**
-
-```bash
-kubectl apply -k k8s/overlays/dev
-kubectl apply -k k8s/overlays/uat
-kubectl apply -k k8s/overlays/main
-```
-
-This recreates Services (including LoadBalancers), Deployments, probes, etc.
-Oracle in `db`:
-
-```bash
-kubectl -n db scale statefulset --all --replicas=1
-kubectl -n db patch cronjob --all --type merge -p '{"spec":{"suspend":false}}' 2>/dev/null || true
-```
-
-**Option 2 — Manual scale-up (if you scaled down by hand)**
-
-```bash
-# Example: scale everything back to 1
-for ns in dev uat main db; do
   kubectl -n "$ns" scale deploy --all --replicas=1 || true
   kubectl -n "$ns" scale statefulset --all --replicas=1 || true
   kubectl -n "$ns" patch cronjob --all --type merge -p '{"spec":{"suspend":false}}' || true
 done
 
-# Recreate LBs if you converted them
-# (either re-apply your Service manifests or patch back to LoadBalancer)
-kubectl -n dev  patch svc frontend-svc -p '{"spec":{"type":"LoadBalancer"}}'   2>/dev/null || true
-kubectl -n dev  patch svc backend-svc  -p '{"spec":{"type":"LoadBalancer"}}'   2>/dev/null || true
-# ...repeat per namespace as needed
+# Optional: bounce pods
+kubectl -n dev rollout restart deploy/backend
+kubectl -n dev rollout restart deploy/frontend
 ```
+
+> If you also want to avoid LB costs during “pause”, convert LoadBalancer Services to ClusterIP and later switch back (see the full Pause/Resume section above).
+
+---
+
+### B) If you **must re-apply kustomize**, keep “latest” by moving the tag
+
+Our overlays pin images (e.g., `:dev`, `:uat`, `:main`).
+If you re-apply, the Deployment will use whatever that tag points to.
+**Solution:** after each build, retag your freshly built image to the overlay tag **without** rebuilding.
+
+**PowerShell**
 
 ```powershell
-function Restore-Replicas($ns) {
-  $deps = (Get-Content "$ns-deploys.json" | ConvertFrom-Json).items
-  foreach ($d in $deps) {
-    $name = $d.metadata.name
-    $rep  = [int]$d.spec.replicas
-    if ($rep -gt 0) { kubectl -n $ns scale deploy $name --replicas $rep }
-  }
+$PROJECT = "spectra-kube"
+$REGION  = "us-central1"
+$REPO    = "nexus"
 
-  $sts = (Get-Content "$ns-sts.json" | ConvertFrom-Json).items
-  foreach ($s in $sts) {
-    $name = $s.metadata.name
-    $rep  = [int]$s.spec.replicas
-    if ($rep -gt 0) { kubectl -n $ns scale statefulset $name --replicas $rep }
-  }
+# Example: you just built these timestamped images
+$BACK_IMG_LATEST  = "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-backend:manual-20251002-171427"
+$FRONT_IMG_LATEST = "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-frontend:manual-20251002-171427"
 
-  # Re-enable CronJobs
-  kubectl -n $ns patch cronjob --all --type merge -p '{\"spec\":{\"suspend\":false}}' 2>$null
-}
+# Move the environment tag (choose one: dev / uat / main)
+gcloud artifacts docker tags add $BACK_IMG_LATEST  "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-backend:dev"
+gcloud artifacts docker tags add $FRONT_IMG_LATEST "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-frontend:dev"
 
-Restore-Replicas dev
-Restore-Replicas uat
-Restore-Replicas main
+# Now re-apply safely; it won’t revert
+kubectl apply -k k8s/overlays/dev
 ```
 
-### Quick checks
+**Bash**
 
 ```bash
-kubectl get pods -A
-kubectl get svc -A --field-selector spec.type=LoadBalancer
-kubectl -n db get pods   # Oracle
+PROJECT="spectra-kube"
+REGION="us-central1"
+REPO="nexus"
+
+BACK_IMG_LATEST="$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-backend:manual-20251002-171427"
+FRONT_IMG_LATEST="$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-frontend:manual-20251002-171427"
+
+gcloud artifacts docker tags add "$BACK_IMG_LATEST"  "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-backend:dev"
+gcloud artifacts docker tags add "$FRONT_IMG_LATEST" "$REGION-docker.pkg.dev/$PROJECT/$REPO/nexus-frontend:dev"
+
+kubectl apply -k k8s/overlays/dev
 ```
+
+> Do the same with `:uat` and `:main` when deploying to those overlays.
+
+---
+
+### Quick image sanity checks (what’s running now vs. what would be applied)
+
+**PowerShell (live Deployment images)**
+
+```powershell
+$NS="dev"
+kubectl -n $NS get deploy backend  -o jsonpath="{.spec.template.spec.containers[?(@.name=='backend')].image}`n"
+kubectl -n $NS get deploy frontend -o jsonpath="{.spec.template.spec.containers[?(@.name=='frontend')].image}`n"
+```
+
+**Bash (live Deployment images)**
+
+```bash
+NS=dev
+kubectl -n "$NS" get deploy backend  -o jsonpath="{.spec.template.spec.containers[?(@.name=='backend')].image}{'\n'}"
+kubectl -n "$NS" get deploy frontend -o jsonpath="{.spec.template.spec.containers[?(@.name=='frontend')].image}{'\n'}"
+```
+
+**Reminder:** Avoid `kubectl apply -k ...` during a simple pause/resume unless you’ve moved the overlay tag to your latest build.
 
 ---
 
