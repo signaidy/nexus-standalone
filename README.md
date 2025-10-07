@@ -470,3 +470,5 @@ kubectl -n "$NS" get deploy frontend -o jsonpath="{.spec.template.spec.container
   and restrict who can push so only **you** can merge.
 
 ---
+
+## TEST ##
