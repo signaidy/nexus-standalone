@@ -81,9 +81,7 @@ steps:
       #   from_secret: dev_secrets_env   # multiline "KEY=VALUE" lines
     commands:
       - set -euxo pipefail
-      - : "${PROJECT_ID:?PROJECT_ID missing}"
-      - : "${REGION:?REGION missing}"
-      - : "${REPO:?REPO missing}"
+      - : "${PROJECT_ID:?PROJECT_ID missing}"; : "${REGION:?REGION missing}"; : "${REPO:?REPO missing}"
       - mkdir -p k8s/overlays/dev
       - |
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
