@@ -69,8 +69,8 @@ steps:
   - name: deploy
     image: gcr.io/cloud-builders/kubectl
     resources:
-      requests: { cpu: 100m, memory: 128Mi }
-      limits:   { cpu: 500m, memory: 256Mi }
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { cpu: 2, memory: 4Gi }
     environment:
       PROJECT_ID: spectra-kube
       REGION: us-central1
