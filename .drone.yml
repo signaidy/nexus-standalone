@@ -67,8 +67,9 @@ steps:
       limits:   { cpu: 2, memory: 4Gi }
 
   - name: deploy
-    image: bitnami/kubectl:1.30
-    entrypoint: ["/bin/bash","-lc"]   # <-- ensure our script runs in a shell
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+    pull: if-not-exists
+    entrypoint: ["/bin/bash","-lc"]
     resources:
       requests: { cpu: 0.1, memory: 128Mi }
       limits:   { cpu: 0.5, memory: 256Mi }
@@ -76,13 +77,10 @@ steps:
       PROJECT_ID: spectra-kube
       REGION: us-central1
       REPO: nexus
-      # APP_SECRETS_ENV:
-      #   from_secret: dev_secrets_env
     commands:
       - |
         set -euxo pipefail
-
-        : "${PROJECT_ID:?PROJECT_ID missing}"; : "${REGION:?REGION missing}"; : "${REPO:?REPO missing}"
+        : "${PROJECT_ID:?}"; : "${REGION:?}"; : "${REPO:?}"
 
         mkdir -p k8s/overlays/dev
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
