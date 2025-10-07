@@ -67,7 +67,8 @@ steps:
       limits:   { cpu: 2, memory: 4Gi }
 
   - name: deploy
-    image: registry.k8s.io/kubectl:v1.30.0
+    image: bitnami/kubectl:1.30
+    entrypoint: ["/bin/bash","-lc"]   # <-- ensure our script runs in a shell
     resources:
       requests: { cpu: 0.1, memory: 128Mi }
       limits:   { cpu: 0.5, memory: 256Mi }
@@ -81,10 +82,8 @@ steps:
       - |
         set -euxo pipefail
 
-        # sanity: make sure variables are present
         : "${PROJECT_ID:?PROJECT_ID missing}"; : "${REGION:?REGION missing}"; : "${REPO:?REPO missing}"
 
-        # ensure the overlay has the env file kustomize expects
         mkdir -p k8s/overlays/dev
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
           printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
@@ -92,7 +91,6 @@ steps:
           : > k8s/overlays/dev/secrets.env
         fi
 
-        # write the override; let the shell expand vars here
         mkdir -p kustom-override/dev
         cat > kustom-override/dev/kustomization.yaml <<EOF
         apiVersion: kustomize.config.k8s.io/v1beta1
@@ -108,7 +106,6 @@ steps:
             newTag: ${DRONE_COMMIT_SHA}
         EOF
 
-        # deploy + wait
         kubectl apply -k kustom-override/dev
         kubectl -n dev rollout status deploy/backend --timeout=300s
         kubectl -n dev rollout status deploy/frontend --timeout=300s
