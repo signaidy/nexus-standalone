@@ -9,19 +9,18 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    
-    args:
+    entrypoint:
+      - /kaniko/executor
+    command:
       - --verbosity=info
       - --context=dir://$DRONE_WORKSPACE/backend
       - --dockerfile=$DRONE_WORKSPACE/backend/Dockerfile
       - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
       - --cache=true
       - --cache-ttl=168h
-      - --snapshotMode=time
+      - --snapshot-mode=time
       - --use-new-run
-    volumes:
-      - name: docker-config
-        path: /kaniko/.docker
+    # no volumes
 
   - name: frontend-build
     image: node:20-bullseye
@@ -46,16 +45,14 @@ steps:
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    resources:
-      requests: { cpu: 1, memory: 1Gi }
-      limits:   { cpu: 2, memory: 4Gi }
-    
-    args:
+    entrypoint:
+      - /kaniko/executor
+    command:
       - --verbosity=debug
       - --image-download-retry=5
       - --image-fs-extract-retry=5
       - --push-retry=5
-      - --snapshotMode=time
+      - --snapshot-mode=time
       - --single-snapshot
       - --compressed-caching=false
       - --no-push-cache
@@ -65,9 +62,9 @@ steps:
       - --cache=true
       - --cache-ttl=168h
       - --use-new-run
-    volumes:
-      - name: docker-config
-        path: /kaniko/.docker
+    resources:
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { cpu: 2, memory: 4Gi }
 
   - name: deploy
     image: bitnami/kubectl:1.30
