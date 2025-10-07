@@ -67,7 +67,10 @@ steps:
       limits:   { cpu: 2, memory: 4Gi }
 
   - name: deploy
-    image: bitnami/kubectl:1.30
+    image: gcr.io/cloud-builders/kubectl
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits:   { cpu: 500m, memory: 256Mi }
     environment:
       PROJECT_ID: spectra-kube
       REGION: us-central1
