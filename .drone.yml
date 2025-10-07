@@ -67,15 +67,33 @@ steps:
       limits:   { cpu: 2, memory: 4Gi }
 
   - name: deploy
-    image: gcr.io/cloud-builders/kubectl
+    image: registry.k8s.io/kubectl:v1.30.0
     resources:
-      requests: { cpu: 1, memory: 1Gi }
-      limits:   { cpu: 2, memory: 4Gi }
+      requests: { cpu: 0.1, memory: 128Mi }
+      limits:   { cpu: 0.5, memory: 256Mi }
     environment:
+      # set explicitly here; or source from Drone secrets if you prefer
       PROJECT_ID: spectra-kube
       REGION: us-central1
       REPO: nexus
+      # Optional: inject your kustomize envs via Drone secrets:
+      # APP_SECRETS_ENV:
+      #   from_secret: dev_secrets_env   # multiline "KEY=VALUE" lines
     commands:
+      - set -euxo pipefail
+      - : "${PROJECT_ID:?PROJECT_ID missing}"
+      - : "${REGION:?REGION missing}"
+      - : "${REPO:?REPO missing}"
+      - mkdir -p k8s/overlays/dev
+      - |
+        if [ -n "${APP_SECRETS_ENV:-}" ]; then
+          printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
+        else
+          # create an empty placeholder to satisfy kustomize; replace with real secrets via Drone secrets soon
+          : > k8s/overlays/dev/secrets.env
+        fi
+
+      # create the override with expanded env vars
       - mkdir -p kustom-override/dev
       - |
         cat > kustom-override/dev/kustomization.yaml <<EOF
@@ -91,6 +109,8 @@ steps:
             newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
             newTag: ${DRONE_COMMIT_SHA}
         EOF
+
+      # deploy + wait
       - kubectl apply -k kustom-override/dev
       - kubectl -n dev rollout status deploy/backend --timeout=300s
       - kubectl -n dev rollout status deploy/frontend --timeout=300s
