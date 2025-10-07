@@ -67,9 +67,9 @@ steps:
       limits:   { cpu: 2, memory: 4Gi }
 
   - name: deploy
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+    image: registry.k8s.io/kubectl
     pull: if-not-exists
-    entrypoint: ["/bin/sh","-lc"]    # <- use sh, not bash
+    entrypoint: ["/bin/sh","-lc"]
     working_dir: /drone/src          # <- make sure we’re in the repo root
     resources:
       requests: { cpu: 0.1, memory: 128Mi }
