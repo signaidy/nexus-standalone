@@ -85,10 +85,13 @@ steps:
     commands:
       - |
         set -eux
-        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
-        echo "[deploy] using ${REGISTRY}"
 
-        # ensure overlay secret file exists for kustomize
+        # 1) validate required env and build REGISTRY
+        : "${PROJECT_ID:?missing}"; : "${REGION:?missing}"; : "${REPO:?missing}"
+        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+        printf '[deploy] registry=%s\n' "$REGISTRY"
+
+        # 2) ensure overlay secret file exists for kustomize
         mkdir -p k8s/overlays/dev
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
           printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
@@ -96,22 +99,36 @@ steps:
           : > k8s/overlays/dev/secrets.env
         fi
 
-        # infra first (svc/cm/ing/etc.)
+        # 3) infra first
         kubectl apply -k k8s/overlays/dev
 
-        # prefer digests; fall back to tag if files missing (shouldn’t happen)
-        BACKEND_IMG="$(cat /drone/src/backend-image.txt  2>/dev/null || echo "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}")"
-        FRONTEND_IMG="$(cat /drone/src/frontend-image.txt 2>/dev/null || echo "${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}")"
+        # 4) read digests, STRIP CR/LF, fallback to tag if files missing
+        BACKEND_IMG_FILE=/drone/src/backend-image.txt
+        FRONTEND_IMG_FILE=/drone/src/frontend-image.txt
 
-        echo "[deploy] backend -> ${BACKEND_IMG}"
-        echo "[deploy] frontend -> ${FRONTEND_IMG}"
+        BACKEND_IMG=""
+        FRONTEND_IMG=""
 
-        kubectl -n dev set image deploy/backend  backend="${BACKEND_IMG}"
-        kubectl -n dev set image deploy/frontend frontend="${FRONTEND_IMG}"
+        if [ -s "$BACKEND_IMG_FILE" ]; then
+          BACKEND_IMG="$(tr -d '\r\n' < "$BACKEND_IMG_FILE")"
+        fi
+        if [ -s "$FRONTEND_IMG_FILE" ]; then
+          FRONTEND_IMG="$(tr -d '\r\n' < "$FRONTEND_IMG_FILE")"
+        fi
 
-        # show what’s set, then wait
+        : "${BACKEND_IMG:=${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}}"
+        : "${FRONTEND_IMG:=${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}}"
+
+        printf '[deploy] backend -> %s\n' "$BACKEND_IMG"
+        printf '[deploy] frontend -> %s\n' "$FRONTEND_IMG"
+
+        # 5) set exact images and wait
+        kubectl -n dev set image deploy/backend  backend="$BACKEND_IMG"
+        kubectl -n dev set image deploy/frontend frontend="$FRONTEND_IMG"
+
         kubectl -n dev get deploy backend  -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
         kubectl -n dev get deploy frontend -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+
         kubectl -n dev rollout status deploy/backend  --timeout=300s
         kubectl -n dev rollout status deploy/frontend --timeout=300s
 
