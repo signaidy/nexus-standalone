@@ -37,6 +37,10 @@ secretGenerator:
   # Frontend Service: attach BackendConfig
   # Backend Service: attach BackendConfig
   # JSON6902 patch to add env var PUBLIC_BACKEND_URL to frontend Deployment
+  
+patchesStrategicMerge:
+  - pull-always.yaml
+
 patches:
 - path: backend-env.patch.yml
   target:

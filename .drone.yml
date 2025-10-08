@@ -1,4 +1,3 @@
----
 kind: pipeline
 type: kubernetes
 name: dev
@@ -9,8 +8,7 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    entrypoint:
-      - /kaniko/executor
+    entrypoint: ["/kaniko/executor"]
     command:
       - --verbosity=info
       - --context=dir://$DRONE_WORKSPACE/backend
@@ -20,59 +18,37 @@ steps:
       - --cache-ttl=168h
       - --snapshot-mode=time
       - --use-new-run
-    # no volumes
-
-  - name: frontend-build
-    image: node:20-bullseye
-    environment:
-      npm_config_fund: "false"
-      npm_config_audit: "false"
-      npm_config_progress: "false"
-      npm_config_fetch_retries: "8"
-      npm_config_fetch_retry_mintimeout: "30000"
-      npm_config_fetch_retry_maxtimeout: "180000"
-      npm_config_network_timeout: "600000"
-    commands:
-      - cd frontend
-      - npm ci
-      - npm run build
-      - npm prune --omit=dev --omit=optional
-      - npm dedupe --omit=dev || true
-      - tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf build.tgz build
-      - tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf node_modules.tgz node_modules
-      - ls -lh build.tgz node_modules.tgz || true
-      - du -sh build node_modules || true
+      # small cache-buster to avoid stale final layer:
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 10Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 20Gi }
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    entrypoint:
-      - /kaniko/executor
+    entrypoint: ["/kaniko/executor"]
     command:
       - --verbosity=debug
-      - --image-download-retry=5
-      - --image-fs-extract-retry=5
-      - --push-retry=5
-      - --snapshot-mode=time
-      - --single-snapshot
-      - --compressed-caching=true
-      - --no-push-cache
       - --context=dir://$DRONE_WORKSPACE/frontend
       - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
       - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
       - --cache=true
       - --cache-ttl=168h
+      - --snapshot-mode=time
       - --use-new-run
-    resources:
-      requests: { cpu: 500, memory: 1Gi, ephemeral_storage: 4Gi }
-      limits:   { cpu: 1500, memory: 2Gi, ephemeral_storage: 8Gi }
-
-  - name: deploy
-    image: alpine/k8s:1.30.3 
-    pull: if-not-exists
-    working_dir: /drone/src           # repo root
+      - --compressed-caching=true
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
     resources:
       requests: { cpu: 1500, memory: 3Gi, ephemeral_storage: 15Gi }
       limits:   { cpu: 3000, memory: 6Gi, ephemeral_storage: 30Gi }
+
+  - name: deploy
+    image: alpine/k8s:1.30.3
+    pull: if-not-exists
+    working_dir: /drone/src
+    resources:
+      requests: { cpu: 500, memory: 512Mi, ephemeral_storage: 2Gi }
+      limits:   { cpu: 2000, memory: 1Gi,   ephemeral_storage: 4Gi }
     environment:
       PROJECT_ID: spectra-kube
       REGION: us-central1
@@ -82,17 +58,10 @@ steps:
     commands:
       - |
         set -eux
+        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+        echo "[deploy] using ${REGISTRY}"
 
-        export PROJECT_ID="${PROJECT_ID:-spectra-kube}"
-        export REGION="${REGION:-us-central1}"
-        export REPO="${REPO:-nexus}"
-        
-        echo "[deploy] using ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
-
-        kubectl version --client=true || true
-        : "${PROJECT_ID:?}"; : "${REGION:?}"; : "${REPO:?}"
-
-        # ensure kustomize overlay has the expected env file
+        # ensure overlay’s secrets.env exists (kustomize requirement)
         mkdir -p k8s/overlays/dev
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
           printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
@@ -100,24 +69,17 @@ steps:
           : > k8s/overlays/dev/secrets.env
         fi
 
-        # write dynamic image tags
-        mkdir -p kustom-override/dev
-        cat > kustom-override/dev/kustomization.yaml <<EOF
-        apiVersion: kustomize.config.k8s.io/v1beta1
-        kind: Kustomization
-        resources:
-          - ../../k8s/overlays/dev
-        images:
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newTag: ${DRONE_COMMIT_SHA}
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newTag: ${DRONE_COMMIT_SHA}
-        EOF
+        # apply overlay first (services, configmaps, etc.)
+        kubectl apply -k k8s/overlays/dev
 
-        # deploy + wait
-        kubectl apply -k kustom-override/dev
+        # FORCE images to the just-built tags (avoids any name-mismatch)
+        kubectl -n dev set image deploy/backend  backend=${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}
+        kubectl -n dev set image deploy/frontend frontend=${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}
+
+        # verify what’s set, then wait for rollouts
+        kubectl -n dev get deploy backend  -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+        kubectl -n dev get deploy frontend -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+
         kubectl -n dev rollout status deploy/backend  --timeout=300s
         kubectl -n dev rollout status deploy/frontend --timeout=300s
 
