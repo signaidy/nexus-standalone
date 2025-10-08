@@ -13,7 +13,7 @@ import SpectraSystems.Nexus.services.ProviderServices;
 import java.util.List;
 
 @RestController
-@RequestMapping("/nexus/providers")
+@RequestMapping("/providers")
 public class ProviderController {
 
     private final ProviderServices providerService;

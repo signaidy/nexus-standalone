@@ -33,13 +33,11 @@ jobs:
               - 'frontend/**'
               - '.github/workflows/ci-sonar-frontend.yml'
 
-      # Set a writable npm cache dir for this run (overrides repo .npmrc)
       - name: Set npm cache dir
         if: steps.changes.outputs.frontend == 'true'
         run: |
           echo "NPM_CONFIG_CACHE=$RUNNER_TEMP/npm-cache" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/npm-cache"
-        # (This uses GitHub's workflow command to export env for later steps.)  # docs: GITHUB_ENV
 
       - name: Setup Node
         if: steps.changes.outputs.frontend == 'true'
@@ -70,6 +68,14 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=spectra-systems_nexus-frontend
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=**/.svelte-kit/**,**/dist/**,**/*.config.*,*vite-env.d.ts
+            -Dsonar.coverage.exclusions=**/*.test.ts,**/tests/**,**/*.config.*,*vite-env.d.ts
+
 
       - name: SonarQube Quality Gate
         if: steps.changes.outputs.frontend == 'true'

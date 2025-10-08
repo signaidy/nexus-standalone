@@ -1,6 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { env } from '$env/dynamic/public';
-const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+const base = env.PUBLIC_BACKEND_URL || '/nexus';
 
 export function load({ locals, url }) {
   const userId = locals.user.userId;

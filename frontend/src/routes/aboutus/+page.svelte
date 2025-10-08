@@ -4,7 +4,7 @@
   let informationabout = getAboutInformation();
 
   async function getAboutInformation() {    
-    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const base = env.PUBLIC_BACKEND_URL || '/nexus';
     const response = await fetch(`${base}/aboutus/1`, {
         method: "GET",
         headers: {

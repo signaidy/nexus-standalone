@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  template:
+    spec:
+      containers:
+      - name: backend
+        # Use plain TCP checks instead of HTTP
+        startupProbe:
+          tcpSocket:
+            port: 8080
+          periodSeconds: 5
+          failureThreshold: 60   # up to 5 min to start
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 6
+          initialDelaySeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          periodSeconds: 20
+          failureThreshold: 6
+          initialDelaySeconds: 180

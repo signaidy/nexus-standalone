@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/nexus/aboutus")
+@RequestMapping("/aboutus")
 @RequiredArgsConstructor
 public class AboutUsController {
     private final AboutUsService aboutUsService;

@@ -38,3 +38,5 @@ k8s/overlays/*/secrets.env
 *.war
 *.ear
 '@ | Add-Content .gitignore
+key.json
+

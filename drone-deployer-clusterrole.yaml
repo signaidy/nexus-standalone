@@ -1,0 +1,35 @@
+# drone-deployer-clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: drone-deployer
+rules:
+# core resources
+- apiGroups: [""]
+  resources: ["configmaps","secrets","services","pods","pods/status","events"]
+  verbs: ["get","list","watch","create","update","patch","delete"]
+# workloads
+- apiGroups: ["apps"]
+  resources: ["deployments","replicasets","statefulsets","daemonsets"]
+  verbs: ["get","list","watch","create","update","patch","delete"]
+# ingress (ns-scoped) + class (cluster-scoped)
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses","ingressclasses"]
+  verbs: ["get","list","watch","create","update","patch","delete"]
+# GKE BackendConfig CRD
+- apiGroups: ["cloud.google.com"]
+  resources: ["backendconfigs"]
+  verbs: ["get","list","watch","create","update","patch","delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: drone-deployer-binding
+subjects:
+- kind: ServiceAccount
+  name: drone-pipeline
+  namespace: ci
+roleRef:
+  kind: ClusterRole
+  name: drone-deployer
+  apiGroup: rbac.authorization.k8s.io
