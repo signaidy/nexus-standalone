@@ -53,7 +53,7 @@ class ReservationControllerWebTest {
     void getAllReservations_ok() throws Exception {
         when(reservationService.getAllReservations()).thenReturn(List.of());
 
-        mvc.perform(get("/nexus/reservations"))
+        mvc.perform(get("/reservations"))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
 
@@ -64,7 +64,7 @@ class ReservationControllerWebTest {
     void getAllReservationsByUserId_ok() throws Exception {
         when(reservationService.getAllReservationsByUserId(7L)).thenReturn(List.of());
 
-        mvc.perform(get("/nexus/reservations/user/{userId}", 7))
+        mvc.perform(get("/reservations/user/{userId}", 7))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
 
@@ -77,10 +77,10 @@ class ReservationControllerWebTest {
         when(reservationService.getReservationById(42L)).thenReturn(Optional.of(new Reservation()));
         when(reservationService.getReservationById(99L)).thenReturn(Optional.empty());
 
-        mvc.perform(get("/nexus/reservations/{id}", 42))
+        mvc.perform(get("/reservations/{id}", 42))
            .andExpect(status().isOk());
 
-        mvc.perform(get("/nexus/reservations/{id}", 99))
+        mvc.perform(get("/reservations/{id}", 99))
            .andExpect(status().isNotFound());
     }
 
@@ -88,7 +88,7 @@ class ReservationControllerWebTest {
     @Test
     void createReservation_badRequest_whenProviderMissing() throws Exception {
         // providerId is required=true; omitting it should 400 at the framework level
-        mvc.perform(post("/nexus/reservations")
+        mvc.perform(post("/reservations")
                 .contentType(APPLICATION_JSON)
                 .content("{}"))
            .andExpect(status().isBadRequest());
@@ -97,7 +97,7 @@ class ReservationControllerWebTest {
     @Test
     void createReservation_badRequest_evenWithProviderId_dueToStubbedController() throws Exception {
         // Current controller returns badRequest() regardless
-        mvc.perform(post("/nexus/reservations")
+        mvc.perform(post("/reservations")
                 .param("providerId", "123")
                 .contentType(APPLICATION_JSON)
                 .content("{}"))
@@ -111,7 +111,7 @@ class ReservationControllerWebTest {
         when(reservationService.updateReservation(eq(5L), any(Reservation.class)))
                 .thenReturn(new Reservation());
 
-        mvc.perform(put("/nexus/reservations/{id}", 5)
+        mvc.perform(put("/reservations/{id}", 5)
                 .contentType(APPLICATION_JSON)
                 .content("{\"roomType\":\"DELUXE\"}"))
            .andExpect(status().isOk());
@@ -125,7 +125,7 @@ class ReservationControllerWebTest {
     void deleteReservation_noContent() throws Exception {
         doNothing().when(reservationService).deleteReservation(9L);
 
-        mvc.perform(delete("/nexus/reservations/{id}", 9))
+        mvc.perform(delete("/reservations/{id}", 9))
            .andExpect(status().isNoContent());
 
         verify(reservationService).deleteReservation(9L);
@@ -134,7 +134,7 @@ class ReservationControllerWebTest {
     // ---------- Cancel endpoints ----------
     @Test
     void cancelReservationsByHotelId_ok() throws Exception {
-        mvc.perform(put("/nexus/reservations/cancelHotel/{hotelId}", "HOTEL-123"))
+        mvc.perform(put("/reservations/cancelHotel/{hotelId}", "HOTEL-123"))
            .andExpect(status().isOk());
 
         verify(reservationService).cancelReservationsByHotelId("HOTEL-123");
@@ -142,7 +142,7 @@ class ReservationControllerWebTest {
 
     @Test
     void cancelReservationById_ok() throws Exception {
-        mvc.perform(put("/nexus/reservations/cancel/{id}", "RES-1"))
+        mvc.perform(put("/reservations/cancel/{id}", "RES-1"))
            .andExpect(status().isOk());
 
         verify(reservationService).cancelReservationsById("RES-1");
@@ -151,7 +151,7 @@ class ReservationControllerWebTest {
     // ---------- External hotel search stubs ----------
     @Test
     void hotelsearch_ok_emptyList() throws Exception {
-        mvc.perform(get("/nexus/reservations/hotelsearch")
+        mvc.perform(get("/reservations/hotelsearch")
                 .param("city", "GUA")
                 .param("check-in", "2025-10-01")
                 .param("check-out", "2025-10-03")
@@ -163,13 +163,13 @@ class ReservationControllerWebTest {
     @Test
     void roomsearch_badRequest_cases() throws Exception {
         // Missing providerId -> Spring will 400 for missing required param
-        mvc.perform(get("/nexus/reservations/roomsearch")
+        mvc.perform(get("/reservations/roomsearch")
                 .param("id", "H-1")
                 .param("city", "GUA"))
            .andExpect(status().isBadRequest());
 
         // With providerId -> controller currently returns badRequest() as well
-        mvc.perform(get("/nexus/reservations/roomsearch")
+        mvc.perform(get("/reservations/roomsearch")
                 .param("id", "H-1")
                 .param("city", "GUA")
                 .param("providerId", "7"))
@@ -178,14 +178,14 @@ class ReservationControllerWebTest {
 
     @Test
     void cities_ok() throws Exception {
-        mvc.perform(get("/nexus/reservations/cities"))
+        mvc.perform(get("/reservations/cities"))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
     }
 
     @Test
     void createReservation_alwaysBadRequest_now() throws Exception {
-        mvc.perform(post("/nexus/reservations")
+        mvc.perform(post("/reservations")
                 .param("providerId", "1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
@@ -194,7 +194,7 @@ class ReservationControllerWebTest {
 
     @Test
     void getHotelRoomById_alwaysBadRequest_now() throws Exception {
-        mvc.perform(get("/nexus/reservations/roomsearch")
+        mvc.perform(get("/reservations/roomsearch")
                 .param("id", "H1")
                 .param("providerId", "1"))
            .andExpect(status().isBadRequest());

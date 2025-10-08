@@ -59,7 +59,7 @@ class FlightControllerWebTest {
         Flight f2 = Flight.builder().id(2L).flightNumber("AA200").build();
         when(flightService.getAllFlights()).thenReturn(List.of(f1, f2));
 
-        mvc.perform(get("/nexus/flights"))
+        mvc.perform(get("/flights"))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
 
@@ -72,16 +72,16 @@ class FlightControllerWebTest {
         when(flightService.getFlightById(42L)).thenReturn(Optional.of(f));
         when(flightService.getFlightById(99L)).thenReturn(Optional.empty());
 
-        mvc.perform(get("/nexus/flights/{id}", 42))
+        mvc.perform(get("/flights/{id}", 42))
            .andExpect(status().isOk());
-        mvc.perform(get("/nexus/flights/{id}", 99))
+        mvc.perform(get("/flights/{id}", 99))
            .andExpect(status().isNotFound());
     }
 
     @Test
     void getAllFlightsByUserId_ok() throws Exception {
         when(flightService.getAllFlightsByUserId(7L)).thenReturn(List.of());
-        mvc.perform(get("/nexus/flights/user/{userId}", 7))
+        mvc.perform(get("/flights/user/{userId}", 7))
            .andExpect(status().isOk());
         verify(flightService).getAllFlightsByUserId(7L);
     }
@@ -89,12 +89,12 @@ class FlightControllerWebTest {
     @Test
     void avianca_lists_ok() throws Exception {
         when(flightService.getAllFlightsFromOtherBackend()).thenReturn(List.of());
-        mvc.perform(get("/nexus/flights/avianca/flights"))
+        mvc.perform(get("/flights/avianca/flights"))
            .andExpect(status().isOk());
 
         when(flightService.getOneWayFlightsFromOtherBackend(1L, 2L, "2025-09-01", 2))
                 .thenReturn(List.of());
-        mvc.perform(get("/nexus/flights/avianca/one-way-flights")
+        mvc.perform(get("/flights/avianca/one-way-flights")
                 .param("originCity", "1")
                 .param("destinationCity", "2")
                 .param("departureDay", "2025-09-01")
@@ -106,7 +106,7 @@ class FlightControllerWebTest {
                 .thenReturn(List.of());
         when(flightService.getOneWayFlightsFromOtherBackend(20L, 10L, "2025-12-10", 1))
                 .thenReturn(List.of());
-        mvc.perform(get("/nexus/flights/avianca/round-trip-flights")
+        mvc.perform(get("/flights/avianca/round-trip-flights")
                 .param("originCity", "10")
                 .param("destinationCity", "20")
                 .param("departureDay", "2025-12-01")
@@ -119,7 +119,7 @@ class FlightControllerWebTest {
    void cities_ok() throws Exception {
       when(flightService.getAllCitiesFromOtherBackend()).thenReturn(List.of());
 
-      mvc.perform(get("/nexus/flights/avianca/cities"))
+      mvc.perform(get("/flights/avianca/cities"))
          .andExpect(status().isOk());
       verify(flightService).getAllCitiesFromOtherBackend();
    }
@@ -131,7 +131,7 @@ class FlightControllerWebTest {
         Flight created = Flight.builder().id(100L).flightNumber("NEW").build();
         when(flightService.createFlight(any(Flight.class))).thenReturn(created);
 
-        mvc.perform(post("/nexus/flights")
+        mvc.perform(post("/flights")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}")) // minimal body, we mock the service anyway
            .andExpect(status().isCreated());
@@ -145,7 +145,7 @@ class FlightControllerWebTest {
         Flight updated = Flight.builder().id(5L).flightNumber("UPD").build();
         when(flightService.updateFlight(eq(5L), any(Flight.class))).thenReturn(updated);
 
-        mvc.perform(put("/nexus/flights/{id}", 5)
+        mvc.perform(put("/flights/{id}", 5)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"flightNumber\":\"UPD\"}"))
            .andExpect(status().isOk());
@@ -157,7 +157,7 @@ class FlightControllerWebTest {
     @WithMockUser(roles = "USER")
     void deleteFlight_noContent() throws Exception {
         doNothing().when(flightService).deleteFlight(9L);
-        mvc.perform(delete("/nexus/flights/{id}", 9))
+        mvc.perform(delete("/flights/{id}", 9))
            .andExpect(status().isNoContent());
         verify(flightService).deleteFlight(9L);
     }
@@ -188,7 +188,7 @@ class FlightControllerWebTest {
         }
         """;
 
-        mvc.perform(post("/nexus/flights/purchase/{amount}/{method}/{providerId}", 2, "card", 77)
+        mvc.perform(post("/flights/purchase/{amount}/{method}/{providerId}", 2, "card", 77)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
            .andExpect(status().isOk())
@@ -224,7 +224,7 @@ class FlightControllerWebTest {
         when(userService.getUserById(7L)).thenReturn(Optional.of(User.builder().id(7L).email("u@e.com").build()));
         when(emailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
 
-        mvc.perform(put("/nexus/flights/deactivate/{flightNumber}", "AA100"))
+        mvc.perform(put("/flights/deactivate/{flightNumber}", "AA100"))
            .andExpect(status().isOk());
 
         verify(flightService).getFlightsByFlightNumber("AA100");
@@ -236,7 +236,7 @@ class FlightControllerWebTest {
     @Test
     void deactivateByFlightNumber_notFound() throws Exception {
         when(flightService.getFlightsByFlightNumber("NONE")).thenReturn(List.of());
-        mvc.perform(put("/nexus/flights/deactivate/{flightNumber}", "NONE"))
+        mvc.perform(put("/flights/deactivate/{flightNumber}", "NONE"))
            .andExpect(status().isNotFound());
     }
 
@@ -255,11 +255,11 @@ class FlightControllerWebTest {
         when(userService.getUserById(7L)).thenReturn(Optional.of(User.builder().id(7L).email("u@e.com").build()));
         when(emailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
 
-        mvc.perform(put("/nexus/flights/deactivateTicket/{id}", 10))
+        mvc.perform(put("/flights/deactivateTicket/{id}", 10))
            .andExpect(status().isOk());
 
         when(flightService.getFlightById(99L)).thenReturn(Optional.empty());
-        mvc.perform(put("/nexus/flights/deactivateTicket/{id}", 99))
+        mvc.perform(put("/flights/deactivateTicket/{id}", 99))
            .andExpect(status().isNotFound());
     }
 
@@ -285,7 +285,7 @@ class FlightControllerWebTest {
       when(flightService.getOneWayFlightsFromOtherBackend(20L, 10L, "2025-12-10", 1))
                .thenReturn(List.of(ret));
 
-      mvc.perform(get("/nexus/flights/avianca/round-trip-flights")
+      mvc.perform(get("/flights/avianca/round-trip-flights")
                .param("originCity", "10")
                .param("destinationCity", "20")
                .param("departureDay", "2025-12-01")
@@ -309,7 +309,7 @@ class FlightControllerWebTest {
       when(flightService.getOneWayFlightsFromOtherBackend(20L, 10L, "2025-12-10", 1))
                .thenReturn(List.of(ret));
 
-      mvc.perform(get("/nexus/flights/avianca/round-trip-flights")
+      mvc.perform(get("/flights/avianca/round-trip-flights")
                .param("originCity", "10")
                .param("destinationCity", "20")
                .param("departureDay", "2025-12-01")
@@ -332,7 +332,7 @@ class FlightControllerWebTest {
       when(flightService.getOneWayFlightsFromOtherBackend(20L, 10L, "2025-12-10", 1))
                .thenReturn(List.of(ret));
 
-      mvc.perform(get("/nexus/flights/avianca/round-trip-flights")
+      mvc.perform(get("/flights/avianca/round-trip-flights")
                .param("originCity", "10")
                .param("destinationCity", "20")
                .param("departureDay", "2025-12-01")
