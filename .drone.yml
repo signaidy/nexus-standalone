@@ -14,36 +14,36 @@ steps:
       REPO: nexus
     commands:
       - |
-        bash -lc '
-          set -eux
+        bash -lc $'set -euxo pipefail
+        # Seed + export
+        PROJECT_ID="${PROJECT_ID:-spectra-kube}"
+        REGION="${REGION:-us-central1}"
+        REPO="${REPO:-nexus}"
+        export PROJECT_ID REGION REPO
+        printf "[env] PROJECT_ID=%s REGION=%s REPO=%s\n" "$PROJECT_ID" "$REGION" "$REPO"
 
-          # Seed/env defaults (Drone may or may not pass these)
-          PROJECT_ID="${PROJECT_ID:-spectra-kube}"
-          REGION="${REGION:-us-central1}"
-          REPO="${REPO:-nexus}"
-          printf "[env] PROJECT_ID=%s REGION=%s REPO=%s\n" "$PROJECT_ID" "$REGION" "$REPO"
+        # Make gcloud the source of truth for project
+        gcloud config set project "$PROJECT_ID"
+        PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID
+        echo "[env] resolved PROJECT_ID from gcloud: $PROJECT_ID"
 
-          # Use gcloud as source of truth, then re-read it back
-          gcloud config set project "$PROJECT_ID"
-          PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID
-          echo "[env] resolved PROJECT_ID from gcloud: $PROJECT_ID"
+        # Cloud Build bucket preflight (DIAGNOSTIC)
+        CB_BUCKET="${PROJECT_ID}_cloudbuild"
+        echo "[env] CB_BUCKET=${CB_BUCKET}"
+        printf "perm-test %s\n" "$(date -u +%FT%TZ)" > /tmp/perm.txt
+        echo "[env] writing gs://${CB_BUCKET}/perm-test.txt"
+        gcloud storage cp /tmp/perm.txt "gs://${CB_BUCKET}/perm-test.txt"
+        gcloud storage ls "gs://${CB_BUCKET}" | head -n 3 || true
 
-          # Preflight write to Cloud Build bucket (diagnostic)
-          CB_BUCKET="${PROJECT_ID}_cloudbuild"; echo "[env] CB_BUCKET=$CB_BUCKET"
-          printf "perm-test %s\n" "$(date -u +%FT%TZ)" > /tmp/perm.txt
-          gcloud storage cp /tmp/perm.txt "gs://${CB_BUCKET}/perm-test.txt"
-          gcloud storage ls "gs://${CB_BUCKET}" | head -n 3 || true
+        # Build + push
+        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+        echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
+        cd backend
+        gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .
 
-          # Build + push backend
-          REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
-          echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
-          cd backend
-          gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .
-
-          # Record digest for deploy
-          gcloud artifacts docker images describe \
-            "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" \
-            --location="$REGION" --format="get(image_summary.digest)" > /drone/src/backend-image.txt
+        # Record digest for deploy
+        gcloud artifacts docker images describe "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" \
+          --location="$REGION" --format="get(image_summary.digest)" > /drone/src/backend-image.txt
         '
 
   - name: frontend-build
