@@ -24,7 +24,7 @@ steps:
       requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 10Gi }
       limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 20Gi }
 
-  - name: build-frontend
+    - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: ["/kaniko/executor"]
     command:
@@ -35,8 +35,9 @@ steps:
       - --cache=true
       - --cache-ttl=168h
       - --snapshot-mode=time
+      - --single-snapshot              # ← reduces memory spikes
+      - --compressed-caching=false     # ← true increases RAM usage
       - --use-new-run
-      - --compressed-caching=true
       - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
     resources:
       requests: { cpu: 1500, memory: 3Gi, ephemeral_storage: 15Gi }
