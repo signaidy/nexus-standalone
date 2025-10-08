@@ -8,31 +8,43 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: google/cloud-sdk:slim
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
     commands:
-      - set -eux
-      # 0) seed defaults (safe even if Drone doesn't inject env)
-      - 'export PROJECT_ID=${PROJECT_ID:-spectra-kube} REGION=${REGION:-us-central1} REPO=${REPO:-nexus}'
-      - 'printf "[env] PROJECT_ID=%s REGION=%s REPO=%s\n" "$PROJECT_ID" "$REGION" "$REPO"'
+      - |
+        bash -lc '
+          set -eux
 
-      # 1) use gcloud as the single source of truth for project (avoids empty var edge-cases)
-      - 'gcloud config set project "$PROJECT_ID"'
-      - 'PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID'
-      - 'echo "[env] resolved PROJECT_ID from gcloud: $PROJECT_ID"'
+          # Seed/env defaults (Drone may or may not pass these)
+          PROJECT_ID="${PROJECT_ID:-spectra-kube}"
+          REGION="${REGION:-us-central1}"
+          REPO="${REPO:-nexus}"
+          printf "[env] PROJECT_ID=%s REGION=%s REPO=%s\n" "$PROJECT_ID" "$REGION" "$REPO"
 
-      # 2) bucket preflight (optional, helps diagnose perms)
-      - 'CB_BUCKET="${PROJECT_ID}_cloudbuild"; echo "[env] CB_BUCKET=$CB_BUCKET"'
-      - 'echo "perm-test $(date -u +%FT%TZ)" > /tmp/perm.txt'
-      - 'gcloud storage cp /tmp/perm.txt "gs://${CB_BUCKET}/perm-test.txt"'
-      - 'gcloud storage ls "gs://${CB_BUCKET}" | head -n 3 || true'
+          # Use gcloud as source of truth, then re-read it back
+          gcloud config set project "$PROJECT_ID"
+          PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID
+          echo "[env] resolved PROJECT_ID from gcloud: $PROJECT_ID"
 
-      # 3) build + push backend
-      - cd backend
-      - 'REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"'
-      - 'echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"'
-      - 'gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .'
+          # Preflight write to Cloud Build bucket (diagnostic)
+          CB_BUCKET="${PROJECT_ID}_cloudbuild"; echo "[env] CB_BUCKET=$CB_BUCKET"
+          printf "perm-test %s\n" "$(date -u +%FT%TZ)" > /tmp/perm.txt
+          gcloud storage cp /tmp/perm.txt "gs://${CB_BUCKET}/perm-test.txt"
+          gcloud storage ls "gs://${CB_BUCKET}" | head -n 3 || true
 
-      # 4) record digest for deploy
-      - 'gcloud artifacts docker images describe "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" --location="$REGION" --format="get(image_summary.digest)" > /drone/src/backend-image.txt'
+          # Build + push backend
+          REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+          echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
+          cd backend
+          gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .
+
+          # Record digest for deploy
+          gcloud artifacts docker images describe \
+            "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" \
+            --location="$REGION" --format="get(image_summary.digest)" > /drone/src/backend-image.txt
+        '
 
   - name: frontend-build
     image: node:20-bullseye
@@ -59,15 +71,32 @@ steps:
 
   - name: build-frontend
     image: google/cloud-sdk:slim
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
     commands:
-      - set -eux
-      - 'export PROJECT_ID=${PROJECT_ID:-spectra-kube} REGION=${REGION:-us-central1} REPO=${REPO:-nexus}'
-      - 'gcloud config set project "$PROJECT_ID"'
-      - 'PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID'
-      - 'REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"'
-      - cd frontend
-      - 'gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" .'
-      - 'gcloud artifacts docker images describe "${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" --location="$REGION" --format="get(image_summary.digest)" > /drone/src/frontend-image.txt'
+      - |
+        bash -lc '
+          set -eux
+
+          PROJECT_ID="${PROJECT_ID:-spectra-kube}"
+          REGION="${REGION:-us-central1}"
+          REPO="${REPO:-nexus}"
+
+          gcloud config set project "$PROJECT_ID"
+          PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID
+
+          REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+          echo "[frontend] ${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"
+
+          cd frontend
+          gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" .
+
+          gcloud artifacts docker images describe \
+            "${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" \
+            --location="$REGION" --format="get(image_summary.digest)" > /drone/src/frontend-image.txt
+        '
 
   - name: deploy
     image: alpine/k8s:1.30.3
