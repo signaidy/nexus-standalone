@@ -7,24 +7,18 @@ service_account_name: drone-pipeline
 
 steps:
   - name: build-backend
-    image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    entrypoint: ["/kaniko/executor"]
-    command:
-      - --verbosity=info
-      - --context=dir://$DRONE_WORKSPACE/backend
-      - --dockerfile=$DRONE_WORKSPACE/backend/Dockerfile
-      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
-      - --cache=true
-      - --cache-ttl=168h
-      - --snapshot-mode=time
-      - --single-snapshot
-      - --compressed-caching=false
-      - --use-new-run
-      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
-      - --image-name-with-digest-file=/drone/src/backend-image.txt   # <-- record digest
-    resources:
-      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 10Gi }
-      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 20Gi }
+    image: google/cloud-sdk:slim
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+    commands:
+      - set -eux
+      - cd backend
+      - gcloud config set project "$PROJECT_ID"
+      - gcloud builds submit --region="$REGION" --tag="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA}" .
+      # optional: record digest for deploy (keeps your digest-based deploys)
+      - gcloud artifacts docker images describe "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend:${DRONE_COMMIT_SHA}" --location="$REGION" --format="get(image_summary.digest)" > /drone/src/backend-image.txt
 
   - name: frontend-build
     image: node:20-bullseye
@@ -50,24 +44,17 @@ steps:
       limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 16Gi }
 
   - name: build-frontend
-    image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    entrypoint: ["/kaniko/executor"]
-    command:
-      - --verbosity=debug
-      - --context=dir://$DRONE_WORKSPACE/frontend
-      - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
-      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
-      - --cache=true
-      - --cache-ttl=168h
-      - --snapshot-mode=time
-      - --single-snapshot
-      - --compressed-caching=false
-      - --use-new-run
-      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
-      - --image-name-with-digest-file=/drone/src/frontend-image.txt  # <-- record digest
-    resources:
-      requests: { cpu: 1000, memory: 1Gi, ephemeral_storage: 8Gi }
-      limits:   { cpu: 2000, memory: 2Gi, ephemeral_storage: 16Gi }
+    image: google/cloud-sdk:slim
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+    commands:
+      - set -eux
+      - cd frontend
+      - gcloud config set project "$PROJECT_ID"
+      - gcloud builds submit --region="$REGION" --tag="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA}" .
+      - gcloud artifacts docker images describe "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend:${DRONE_COMMIT_SHA}" --location="$REGION" --format="get(image_summary.digest)" > /drone/src/frontend-image.txt
 
   - name: deploy
     image: alpine/k8s:1.30.3
