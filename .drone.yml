@@ -241,7 +241,7 @@ steps:
 
         # Minimum validation
         for k in DB_USER DB_PASS; do
-          grep -E "^[[:space:]]*$k=" k8s/overlays/uat/secrets.env >/uat/null || {
+          grep -E "^[[:space:]]*$k=" k8s/overlays/uat/secrets.env >/dev/null || {
             echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
         done
 
@@ -384,7 +384,7 @@ steps:
         fi
 
         for k in DB_USER DB_PASS; do
-          grep -E "^[[:space:]]*$k=" k8s/overlays/main/secrets.env >/main/null || {
+          grep -E "^[[:space:]]*$k=" k8s/overlays/main/secrets.env >/dev/null || {
             echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
         done
 
