@@ -70,7 +70,6 @@ jobs:
           projectBaseDir: frontend
           args: >
             -Dsonar.projectKey=spectra-systems_nexus-frontend
-            -Dsonar.projectName=Nexus Frontend
             -Dsonar.sources=src
             -Dsonar.tests=tests
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
