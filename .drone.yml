@@ -82,6 +82,13 @@ steps:
     commands:
       - |
         set -eux
+
+        export PROJECT_ID="${PROJECT_ID:-spectra-kube}"
+        export REGION="${REGION:-us-central1}"
+        export REPO="${REPO:-nexus}"
+        
+        echo "[deploy] using ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+
         kubectl version --client=true || true
         : "${PROJECT_ID:?}"; : "${REGION:?}"; : "${REPO:?}"
 
