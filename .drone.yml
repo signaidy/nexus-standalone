@@ -18,30 +18,52 @@ steps:
       - --cache-ttl=168h
       - --snapshot-mode=time
       - --use-new-run
-      # small cache-buster to avoid stale final layer:
       - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
     resources:
       requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 10Gi }
       limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 20Gi }
 
-    - name: build-frontend
+  - name: frontend-build            # <-- NEW: build outside Kaniko
+    image: node:20-bullseye
+    environment:
+      npm_config_fund: "false"
+      npm_config_audit: "false"
+      npm_config_progress: "false"
+      npm_config_fetch_retries: "8"
+      npm_config_fetch_retry_mintimeout: "30000"
+      npm_config_fetch_retry_maxtimeout: "180000"
+      npm_config_network_timeout: "600000"
+      NODE_OPTIONS: "--max-old-space-size=1536"
+    commands:
+      - cd frontend
+      - npm ci --no-audit --no-fund --loglevel=warn
+      - npm run build -- --force
+      - npm prune --omit=dev --omit=optional
+      - npm dedupe --omit=dev || true
+      - ls -lh build || true
+      - du -sh build node_modules || true
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 16Gi }
+
+  - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: ["/kaniko/executor"]
     command:
       - --verbosity=debug
-      - --context=dir://$DRONE_WORKSPACE/frontend
+      - --context=dir://$DRONE_WORKSPACE/frontend   # now contains build/ + node_modules/
       - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
       - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
       - --cache=true
       - --cache-ttl=168h
       - --snapshot-mode=time
-      - --single-snapshot              # ← reduces memory spikes
-      - --compressed-caching=false     # ← true increases RAM usage
+      - --single-snapshot
+      - --compressed-caching=false
       - --use-new-run
       - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
     resources:
-      requests: { cpu: 1500, memory: 3Gi, ephemeral_storage: 15Gi }
-      limits:   { cpu: 3000, memory: 6Gi, ephemeral_storage: 30Gi }
+      requests: { cpu: 1000, memory: 1Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 2Gi, ephemeral_storage: 16Gi }
 
   - name: deploy
     image: alpine/k8s:1.30.3
@@ -62,7 +84,6 @@ steps:
         REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
         echo "[deploy] using ${REGISTRY}"
 
-        # ensure overlay’s secrets.env exists (kustomize requirement)
         mkdir -p k8s/overlays/dev
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
           printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
@@ -70,17 +91,16 @@ steps:
           : > k8s/overlays/dev/secrets.env
         fi
 
-        # apply overlay first (services, configmaps, etc.)
+        # apply infra first
         kubectl apply -k k8s/overlays/dev
 
-        # FORCE images to the just-built tags (avoids any name-mismatch)
+        # force exact images just built
         kubectl -n dev set image deploy/backend  backend=${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}
         kubectl -n dev set image deploy/frontend frontend=${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}
 
-        # verify what’s set, then wait for rollouts
+        # show images and wait
         kubectl -n dev get deploy backend  -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
         kubectl -n dev get deploy frontend -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
-
         kubectl -n dev rollout status deploy/backend  --timeout=300s
         kubectl -n dev rollout status deploy/frontend --timeout=300s
 

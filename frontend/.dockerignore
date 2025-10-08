@@ -1,12 +1,12 @@
 # node
-node_modules
+# node_modules
 .npm
 .npmrc.local
 
 # svelte/vite
 .svelte-kit
 dist
-build
+# build
 coverage
 
 # tests & local stuff
@@ -21,3 +21,10 @@ tests
 .gitignore
 Dockerfile
 .dockerignore
+
+# keep other ignores, but DO NOT ignore the artifacts we need:
+!.dockerignore
+!package.json
+!package-lock.json
+!build
+!node_modules
