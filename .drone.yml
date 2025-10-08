@@ -54,7 +54,7 @@ steps:
       - --push-retry=5
       - --snapshot-mode=time
       - --single-snapshot
-      - --compressed-caching=false
+      - --compressed-caching=true
       - --no-push-cache
       - --context=dir://$DRONE_WORKSPACE/frontend
       - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
@@ -63,16 +63,16 @@ steps:
       - --cache-ttl=168h
       - --use-new-run
     resources:
-      requests: { cpu: 1, memory: 1Gi }
-      limits:   { cpu: 2, memory: 4Gi }
+      requests: { cpu: 500, memory: 1Gi, ephemeral_storage: 4Gi }
+      limits:   { cpu: 1500, memory: 2Gi, ephemeral_storage: 8Gi }
 
   - name: deploy
     image: alpine/k8s:1.30.3 
     pull: if-not-exists
     working_dir: /drone/src           # repo root
     resources:
-      requests: { cpu: 1, memory: 1Gi }
-      limits:   { cpu: 2, memory: 4Gi }
+      requests: { cpu: 1500, memory: 3Gi, ephemeral_storage: 15Gi }
+      limits:   { cpu: 3000, memory: 6Gi, ephemeral_storage: 30Gi }
     environment:
       PROJECT_ID: spectra-kube
       REGION: us-central1
