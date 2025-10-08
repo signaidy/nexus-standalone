@@ -1,51 +1,52 @@
-import { redirect } from "@sveltejs/kit";
-import { fail } from "@sveltejs/kit";
-import { env } from '$env/dynamic/public';
+import { redirect, fail, isRedirect } from '@sveltejs/kit';
+import { env as pub } from '$env/dynamic/public';
+import { env as priv } from '$env/dynamic/private';
 
 export const actions = {
-  default: async ({ cookies, request }) => {
-    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+  default: async (event) => {
+    const { cookies, request, fetch, url } = event;
     const data = await request.formData();
 
-    if (data.get("password") !== data.get("confirmedPassword")) {
-      return fail(400, {
-        error: "Passwords do not match",
-      });
+    if (data.get('password') !== data.get('confirmedPassword')) {
+      return fail(400, { error: 'Passwords do not match' });
     }
-    
+
+    const baseRaw = priv.PRIVATE_BACKEND_URL ?? pub.PUBLIC_BACKEND_URL ?? 'http://backend.dev.svc.cluster.local:8080/nexus';
+    const apiBase = baseRaw.startsWith('http')
+      ? baseRaw.replace(/\/+$/, '')
+      : new URL(baseRaw, url.origin).toString().replace(/\/+$/, '');
+
     try {
-      const response = await fetch(`${base}/auth/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const resp = await fetch(`${apiBase}/auth/signup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          email: data.get("email"),
-          password: data.get("password"),
-          first_Name: data.get("firstName"),
-          last_Name: data.get("lastName"),
-          country: data.get("originCountry"),
-          passport: data.get("passportNumber"),
-          age: data.get("age"),
-        }),
+          email: String(data.get('email') ?? ''),
+          password: String(data.get('password') ?? ''),
+          first_Name: String(data.get('firstName') ?? ''),
+          last_Name: String(data.get('lastName') ?? ''),
+          country: String(data.get('originCountry') ?? ''),
+          passport: String(data.get('passportNumber') ?? ''),
+          age: Number(data.get('age') ?? 0)
+        })
       });
-      const result = await response.json();
-      console.log(result.token)
 
-      if (result.error) {
-        throw new Error(result.error);
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        return fail(resp.status, { error: `Signup failed (${resp.status}) ${text}`.trim() });
       }
 
-      // const token = sign(result, JWT_SECRET);
+      const result = await resp.json().catch(() => null);
+      if (!result?.token) return fail(500, { error: 'Invalid response from server' });
 
-      cookies.set("token", result.token, { path: "/", secure: false });
-    } catch (error) {
-      if (error instanceof Error) {
-        return fail(500, {
-          error: error.message,
-        });
-      }
+      cookies.set('token', result.token, { path: '/', httpOnly: true, sameSite: 'lax', secure: false });
+
+      throw redirect(303, '/'); // important: THROW the redirect
+    } catch (e) {
+      console.error('[login action] error:', e);
+      if (isRedirect(e)) throw e;
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      return fail(500, { error: msg });
     }
-    redirect(303, "/");
-  },
+  }
 };

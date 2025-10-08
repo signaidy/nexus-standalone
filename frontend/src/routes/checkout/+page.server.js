@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/public';
 
 export const actions = {
   default: async({request, cookies}) => {    
-    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const base = env.PUBLIC_BACKEND_URL || '/nexus';
     const token = cookies.get('token');
     let bundle = null;
       const formData = await request.formData(); 

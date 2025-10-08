@@ -1,4 +1,4 @@
-// backend/src/test/java/SpectraSystems/Nexus/controllers/AuthenticationControllerStandaloneTest.java
+// backend/src/test/java/SpectraSystems/controllers/AuthenticationControllerStandaloneTest.java
 package SpectraSystems.Nexus.controllers;
 
 import SpectraSystems.Nexus.dto.JwtAuthenticationResponse;
@@ -52,7 +52,7 @@ class AuthenticationControllerStandaloneTest {
                 JwtAuthenticationResponse.builder().token("JWT-CTRL").user(null).build()
         );
 
-        mockMvc.perform(post("/nexus/auth/login")
+        mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(
                         Map.of("email", "user@example.com", "password", "secret"))))
@@ -67,7 +67,7 @@ class AuthenticationControllerStandaloneTest {
                 JwtAuthenticationResponse.builder().token("JWT-SIGNUP").build()
         );
 
-        mockMvc.perform(post("/nexus/auth/signup")
+        mockMvc.perform(post("/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(
                         Map.of("first_Name","Jane","last_Name","Doe",

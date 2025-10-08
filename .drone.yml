@@ -1,4 +1,3 @@
----
 kind: pipeline
 type: kubernetes
 name: dev
@@ -9,11 +8,23 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: ["/kaniko/executor"]
     command:
-    - "--context=backend"
-    - "--dockerfile=backend/Dockerfile"
-    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
-    - "--cache=true"
+      - --verbosity=info
+      - --context=dir://$DRONE_WORKSPACE/backend
+      - --dockerfile=$DRONE_WORKSPACE/backend/Dockerfile
+      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
+      - --cache=true
+      - --cache-ttl=168h
+      - --snapshot-mode=time
+      - --single-snapshot
+      - --compressed-caching=false
+      - --use-new-run
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
+      - --image-name-with-digest-file=/drone/src/backend-image.txt   # <-- record digest
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 10Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 20Gi }
 
   - name: frontend-build
     image: node:20-bullseye
@@ -25,71 +36,119 @@ steps:
       npm_config_fetch_retry_mintimeout: "30000"
       npm_config_fetch_retry_maxtimeout: "180000"
       npm_config_network_timeout: "600000"
+      NODE_OPTIONS: "--max-old-space-size=1536"
     commands:
       - cd frontend
-      - npm ci
+      - npm ci --no-audit --no-fund --loglevel=warn
       - npm run build
       - npm prune --omit=dev --omit=optional
       - npm dedupe --omit=dev || true
-      - tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf build.tgz build
-      - tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -I 'gzip -9n' -cf node_modules.tgz node_modules
-      - ls -lh build.tgz node_modules.tgz || true
+      - ls -lh build || true
       - du -sh build node_modules || true
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 16Gi }
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    resources:
-      requests: { cpu: 2, memory: 2Gi }
-      limits:   { cpu: 4, memory: 4Gi }
-    entrypoint:
-      - /busybox/sh
-      - -c
+    entrypoint: ["/kaniko/executor"]
     command:
-      - |
-        set -euo pipefail
-        /kaniko/executor \
-          --verbosity=debug \
-          --context=frontend \
-          --dockerfile=frontend/Dockerfile \
-          --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA} \
-          --cache=true \
-          --cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache \
-          --snapshot-mode=time \
-          --reproducible &
-
-        pid=$!
-        # heartbeat: print once a minute until Kaniko exits
-        while kill -0 "$pid" >/dev/null 2>&1; do
-          echo "[kaniko] still working: $(/busybox/date -u +%Y-%m-%dT%H:%M:%SZ)"
-          /busybox/sleep 60
-        done
-        wait "$pid"
+      - --verbosity=debug
+      - --context=dir://$DRONE_WORKSPACE/frontend
+      - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
+      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
+      - --cache=true
+      - --cache-ttl=168h
+      - --snapshot-mode=time
+      - --single-snapshot
+      - --compressed-caching=false
+      - --use-new-run
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
+      - --image-name-with-digest-file=/drone/src/frontend-image.txt  # <-- record digest
+    resources:
+      requests: { cpu: 1000, memory: 1Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 2Gi, ephemeral_storage: 16Gi }
 
   - name: deploy
-    image: bitnami/kubectl:latest
+    image: alpine/k8s:1.30.3
+    pull: if-not-exists
+    working_dir: /drone/src
+    resources:
+      requests: { cpu: 500, memory: 512Mi, ephemeral_storage: 2Gi }
+      limits:   { cpu: 2000, memory: 1Gi,   ephemeral_storage: 4Gi }
     environment:
       PROJECT_ID: spectra-kube
       REGION: us-central1
       REPO: nexus
+      APP_SECRETS_ENV:
+        from_secret: dev_secrets_env
     commands:
-      - mkdir -p kustom-override/dev
       - |
-        cat > kustom-override/dev/kustomization.yaml <<EOF
-        apiVersion: kustomize.config.k8s.io/v1beta1
-        kind: Kustomization
-        resources:
-          - ../../k8s/overlays/dev
-        images:
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newTag: ${DRONE_COMMIT_SHA}
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newTag: ${DRONE_COMMIT_SHA}
-        EOF
-      - kubectl apply -k kustom-override/dev
-      - kubectl -n dev rollout status deploy/backend --timeout=180s
-      - kubectl -n dev rollout status deploy/frontend --timeout=180s
+        set -eux
+
+        # 1) required env + registry (we still prefer digests, but this is used as fallback)
+        : "${PROJECT_ID:?missing}"; : "${REGION:?missing}"; : "${REPO:?missing}"
+        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+        printf '[deploy] registry=%s\n' "$REGISTRY"
+
+        # 2) ensure overlay secret file exists with real contents
+        mkdir -p k8s/overlays/dev
+
+        # Prefer repo file for dev (branch-specific), else use Drone secret
+        if [ -f backend/.env.dev ]; then
+          # normalize line endings
+          tr -d '\r' < backend/.env.dev > k8s/overlays/dev/secrets.env
+        elif [ -n "${APP_SECRETS_ENV:-}" ]; then
+          printf '%s\n' "$APP_SECRETS_ENV" | tr -d '\r' > k8s/overlays/dev/secrets.env
+        else
+          echo "ERROR: no secrets provided (backend/.env.dev missing and APP_SECRETS_ENV empty)"; exit 1
+        fi
+
+        # Validate required keys (add more if your deployment expects more)
+        for k in DB_USER DB_PASS; do
+          grep -E "^[[:space:]]*$k=" k8s/overlays/dev/secrets.env >/dev/null || {
+            echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
+        done
+
+        # 3) apply infra (svc/cm/ing/secrets from secretGenerator)
+        kubectl apply -k k8s/overlays/dev
+
+        # 4) image digests (strip CR/LF), fallback to tags if files not present
+        bfile=/drone/src/backend-image.txt
+        ffile=/drone/src/frontend-image.txt
+        BACKEND_IMG=""; FRONTEND_IMG=""
+
+        [ -s "$bfile" ] && BACKEND_IMG="$(tr -d '\r\n' < "$bfile")" || BACKEND_IMG="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
+        [ -s "$ffile" ] && FRONTEND_IMG="$(tr -d '\r\n' < "$ffile")" || FRONTEND_IMG="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"
+
+        printf '[deploy] backend -> %s\n' "$BACKEND_IMG"
+        printf '[deploy] frontend -> %s\n' "$FRONTEND_IMG"
+
+        # 5) set exact images and wait
+        kubectl -n dev set image deploy/backend  backend="$BACKEND_IMG"
+        kubectl -n dev set image deploy/frontend frontend="$FRONTEND_IMG"
+
+        # show what’s set
+        kubectl -n dev get deploy backend  -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+        kubectl -n dev get deploy frontend -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+
+        # 6) wait; if backend fails, print useful diagnostics
+        set +e
+        kubectl -n dev rollout status deploy/frontend --timeout=600s
+        FE_RC=$?
+        kubectl -n dev rollout status deploy/backend  --timeout=600s
+        BK_RC=$?
+        set -e
+
+        if [ $BK_RC -ne 0 ] || [ $FE_RC -ne 0 ]; then
+          echo "== DIAGNOSTICS =="
+          kubectl -n dev get rs -o wide
+          kubectl -n dev get pods -o wide
+          kubectl -n dev get events --sort-by=.metadata.creationTimestamp | tail -n 100 || true
+          kubectl -n dev describe deploy/backend || true
+          kubectl -n dev describe pods -l app=backend || true
+          exit 1
+        fi
 
 ---
 kind: pipeline
@@ -97,14 +156,27 @@ type: kubernetes
 name: uat
 trigger: { branch: [uat], event: [push] }
 service_account_name: drone-pipeline
+
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: ["/kaniko/executor"]
     command:
-    - "--context=backend"
-    - "--dockerfile=backend/Dockerfile"
-    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
-    - "--cache=true"
+      - --verbosity=info
+      - --context=dir://$DRONE_WORKSPACE/backend
+      - --dockerfile=$DRONE_WORKSPACE/backend/Dockerfile
+      - --destination=us-central1-docker.pkg.uat/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
+      - --cache=true
+      - --cache-ttl=168h
+      - --snapshot-mode=time
+      - --single-snapshot
+      - --compressed-caching=false
+      - --use-new-run
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
+      - --image-name-with-digest-file=/drone/src/backend-image.txt
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 10Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 20Gi }
 
   - name: frontend-build
     image: node:20-bullseye
@@ -116,67 +188,111 @@ steps:
       npm_config_fetch_retry_mintimeout: "30000"
       npm_config_fetch_retry_maxtimeout: "180000"
       npm_config_network_timeout: "600000"
+      NODE_OPTIONS: "--max-old-space-size=1536"
     commands:
       - cd frontend
-      - npm ci
+      - npm ci --no-audit --no-fund --loglevel=warn
       - npm run build
-      - tar -czf build.tgz build
-      - npm prune --omit=dev
-      - tar -czf node_modules.tgz node_modules
+      - npm prune --omit=uat --omit=optional
+      - npm dedupe --omit=uat || true
+      - ls -lh build || true
       - du -sh build node_modules || true
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 16Gi }
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    resources:
-      requests: { cpu: 2, memory: 2Gi }
-      limits:   { cpu: 4, memory: 4Gi }
-    entrypoint:
-      - /busybox/sh
-      - -c
+    entrypoint: ["/kaniko/executor"]
     command:
-      - |
-        set -euo pipefail
-        /kaniko/executor \
-          --verbosity=debug \
-          --context=frontend \
-          --dockerfile=frontend/Dockerfile \
-          --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA} \
-          --cache=true \
-          --cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache \
-          --snapshot-mode=time \
-          --single-snapshot \
-          --reproducible &
-
-        pid=$!
-        # heartbeat: print once a minute until Kaniko exits
-        while kill -0 "$pid" >/dev/null 2>&1; do
-          echo "[kaniko] still working: $(/busybox/date -u +%Y-%m-%dT%H:%M:%SZ)"
-          /busybox/sleep 60
-        done
-        wait "$pid"
+      - --verbosity=debug
+      - --context=dir://$DRONE_WORKSPACE/frontend
+      - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
+      - --destination=us-central1-docker.pkg.uat/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
+      - --cache=true
+      - --cache-ttl=168h
+      - --snapshot-mode=time
+      - --single-snapshot
+      - --compressed-caching=false
+      - --use-new-run
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
+      - --image-name-with-digest-file=/drone/src/frontend-image.txt
+    resources:
+      requests: { cpu: 1000, memory: 1Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 2Gi, ephemeral_storage: 16Gi }
 
   - name: deploy
-    image: bitnami/kubectl:latest
-    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    image: alpine/k8s:1.30.3
+    pull: if-not-exists
+    working_dir: /drone/src
+    resources:
+      requests: { cpu: 500, memory: 512Mi, ephemeral_storage: 2Gi }
+      limits:   { cpu: 2000, memory: 1Gi,   ephemeral_storage: 4Gi }
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+      APP_SECRETS_ENV:
+        from_secret: uat_secrets_env
     commands:
-      - mkdir -p kustom-override/uat
       - |
-        cat > kustom-override/uat/kustomization.yaml <<EOF
-        apiVersion: kustomize.config.k8s.io/v1beta1
-        kind: Kustomization
-        resources:
-          - ../../k8s/overlays/uat
-        images:
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newTag: ${DRONE_COMMIT_SHA}
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newTag: ${DRONE_COMMIT_SHA}
-        EOF
-      - kubectl apply -k kustom-override/uat
-      - kubectl -n uat rollout status deploy/backend --timeout=180s
-      - kubectl -n uat rollout status deploy/frontend --timeout=180s
+        set -eux
+
+        : "${PROJECT_ID:?missing}"; : "${REGION:?missing}"; : "${REPO:?missing}"
+        REGISTRY="${REGION}-docker.pkg.uat/${PROJECT_ID}/${REPO}"
+        printf '[deploy][uat] registry=%s\n' "$REGISTRY"
+
+        # Secrets: prefer repo file for UAT, else Drone secret
+        mkdir -p k8s/overlays/uat
+        if [ -f backend/.env.uat ]; then
+          tr -d '\r' < backend/.env.uat > k8s/overlays/uat/secrets.env
+        elif [ -n "${APP_SECRETS_ENV:-}" ]; then
+          printf '%s\n' "$APP_SECRETS_ENV" | tr -d '\r' > k8s/overlays/uat/secrets.env
+        else
+          echo "ERROR: no secrets provided (backend/.env.uat missing and APP_SECRETS_ENV empty)"; exit 1
+        fi
+
+        # Minimum validation
+        for k in DB_USER DB_PASS; do
+          grep -E "^[[:space:]]*$k=" k8s/overlays/uat/secrets.env >/uat/null || {
+            echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
+        done
+
+        # Apply infra for UAT
+        kubectl apply -k k8s/overlays/uat
+
+        # Image digests (fallback to tags)
+        bfile=/drone/src/backend-image.txt
+        ffile=/drone/src/frontend-image.txt
+        BACKEND_IMG=""; FRONTEND_IMG=""
+        [ -s "$bfile" ] && BACKEND_IMG="$(tr -d '\r\n' < "$bfile")" || BACKEND_IMG="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
+        [ -s "$ffile" ] && FRONTEND_IMG="$(tr -d '\r\n' < "$ffile")" || FRONTEND_IMG="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"
+
+        printf '[deploy][uat] backend -> %s\n' "$BACKEND_IMG"
+        printf '[deploy][uat] frontend -> %s\n' "$FRONTEND_IMG"
+
+        kubectl -n uat set image deploy/backend  backend="$BACKEND_IMG"
+        kubectl -n uat set image deploy/frontend frontend="$FRONTEND_IMG"
+
+        kubectl -n uat get deploy backend  -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+        kubectl -n uat get deploy frontend -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+
+        set +e
+        kubectl -n uat rollout status deploy/frontend --timeout=600s
+        FE_RC=$?
+        kubectl -n uat rollout status deploy/backend  --timeout=600s
+        BK_RC=$?
+        set -e
+
+        if [ $BK_RC -ne 0 ] || [ $FE_RC -ne 0 ]; then
+          echo "== DIAGNOSTICS (uat) =="
+          kubectl -n uat get rs -o wide
+          kubectl -n uat get pods -o wide
+          kubectl -n uat get events --sort-by=.metadata.creationTimestamp | tail -n 100 || true
+          kubectl -n uat describe deploy/backend || true
+          kubectl -n uat describe pods -l app=backend || true
+          exit 1
+        fi
 
 ---
 kind: pipeline
@@ -184,14 +300,27 @@ type: kubernetes
 name: main
 trigger: { branch: [main], event: [push] }
 service_account_name: drone-pipeline
+
 steps:
   - name: build-backend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: ["/kaniko/executor"]
     command:
-    - "--context=backend"
-    - "--dockerfile=backend/Dockerfile"
-    - "--destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}"
-    - "--cache=true"
+      - --verbosity=info
+      - --context=dir://$DRONE_WORKSPACE/backend
+      - --dockerfile=$DRONE_WORKSPACE/backend/Dockerfile
+      - --destination=us-central1-docker.pkg.main/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
+      - --cache=true
+      - --cache-ttl=168h
+      - --snapshot-mode=time
+      - --single-snapshot
+      - --compressed-caching=false
+      - --use-new-run
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
+      - --image-name-with-digest-file=/drone/src/backend-image.txt
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 10Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 20Gi }
 
   - name: frontend-build
     image: node:20-bullseye
@@ -203,64 +332,107 @@ steps:
       npm_config_fetch_retry_mintimeout: "30000"
       npm_config_fetch_retry_maxtimeout: "180000"
       npm_config_network_timeout: "600000"
+      NODE_OPTIONS: "--max-old-space-size=1536"
     commands:
       - cd frontend
-      - npm ci
+      - npm ci --no-audit --no-fund --loglevel=warn
       - npm run build
-      - tar -czf build.tgz build
-      - npm prune --omit=dev
-      - tar -czf node_modules.tgz node_modules
+      - npm prune --omit=main --omit=optional
+      - npm dedupe --omit=main || true
+      - ls -lh build || true
       - du -sh build node_modules || true
+    resources:
+      requests: { cpu: 1000, memory: 2Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 4Gi, ephemeral_storage: 16Gi }
 
   - name: build-frontend
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    resources:
-      requests: { cpu: 2, memory: 2Gi }
-      limits:   { cpu: 4, memory: 4Gi }
-    entrypoint:
-      - /busybox/sh
-      - -c
+    entrypoint: ["/kaniko/executor"]
     command:
-      - |
-        set -euo pipefail
-        /kaniko/executor \
-          --verbosity=debug \
-          --context=frontend \
-          --dockerfile=frontend/Dockerfile \
-          --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA} \
-          --cache=true \
-          --cache-repo=us-central1-docker.pkg.dev/spectra-kube/nexus/kaniko-cache \
-          --snapshot-mode=time \
-          --single-snapshot \
-          --reproducible &
+      - --verbosity=debug
+      - --context=dir://$DRONE_WORKSPACE/frontend
+      - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
+      - --destination=us-central1-docker.pkg.main/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
+      - --cache=true
+      - --cache-ttl=168h
+      - --snapshot-mode=time
+      - --single-snapshot
+      - --compressed-caching=false
+      - --use-new-run
+      - --build-arg=COMMIT_SHA=${DRONE_COMMIT_SHA}
+      - --image-name-with-digest-file=/drone/src/frontend-image.txt
+    resources:
+      requests: { cpu: 1000, memory: 1Gi, ephemeral_storage: 8Gi }
+      limits:   { cpu: 2000, memory: 2Gi, ephemeral_storage: 16Gi }
 
-        pid=$!
-        # heartbeat: print once a minute until Kaniko exits
-        while kill -0 "$pid" >/dev/null 2>&1; do
-          echo "[kaniko] still working: $(/busybox/date -u +%Y-%m-%dT%H:%M:%SZ)"
-          /busybox/sleep 60
-        done
-        wait "$pid"
-      
   - name: deploy
-    image: bitnami/kubectl:latest
-    environment: { PROJECT_ID: spectra-kube, REGION: us-central1, REPO: nexus }
+    image: alpine/k8s:1.30.3
+    pull: if-not-exists
+    working_dir: /drone/src
+    resources:
+      requests: { cpu: 500, memory: 512Mi, ephemeral_storage: 2Gi }
+      limits:   { cpu: 2000, memory: 1Gi,   ephemeral_storage: 4Gi }
+    environment:
+      PROJECT_ID: spectra-kube
+      REGION: us-central1
+      REPO: nexus
+      APP_SECRETS_ENV:
+        from_secret: main_secrets_env
     commands:
-      - mkdir -p kustom-override/main
       - |
-        cat > kustom-override/main/kustomization.yaml <<EOF
-        apiVersion: kustomize.config.k8s.io/v1beta1
-        kind: Kustomization
-        resources:
-          - ../../k8s/overlays/main
-        images:
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-backend
-            newTag: ${DRONE_COMMIT_SHA}
-          - name: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newName: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/nexus-frontend
-            newTag: ${DRONE_COMMIT_SHA}
-        EOF
-      - kubectl apply -k kustom-override/main
-      - kubectl -n main rollout status deploy/backend --timeout=180s
-      - kubectl -n main rollout status deploy/frontend --timeout=180s
+        set -eux
+
+        : "${PROJECT_ID:?missing}"; : "${REGION:?missing}"; : "${REPO:?missing}"
+        REGISTRY="${REGION}-docker.pkg.main/${PROJECT_ID}/${REPO}"
+        printf '[deploy][main] registry=%s\n' "$REGISTRY"
+
+        # Secrets: prefer repo file for main, else Drone secret
+        mkdir -p k8s/overlays/main
+        if [ -f backend/.env.main ]; then
+          tr -d '\r' < backend/.env.main > k8s/overlays/main/secrets.env
+        elif [ -n "${APP_SECRETS_ENV:-}" ]; then
+          printf '%s\n' "$APP_SECRETS_ENV" | tr -d '\r' > k8s/overlays/main/secrets.env
+        else
+          echo "ERROR: no secrets provided (backend/.env.main missing and APP_SECRETS_ENV empty)"; exit 1
+        fi
+
+        for k in DB_USER DB_PASS; do
+          grep -E "^[[:space:]]*$k=" k8s/overlays/main/secrets.env >/main/null || {
+            echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
+        done
+
+        # Apply infra for MAIN
+        kubectl apply -k k8s/overlays/main
+
+        # Image digests (fallback to tags)
+        bfile=/drone/src/backend-image.txt
+        ffile=/drone/src/frontend-image.txt
+        BACKEND_IMG=""; FRONTEND_IMG=""
+        [ -s "$bfile" ] && BACKEND_IMG="$(tr -d '\r\n' < "$bfile")" || BACKEND_IMG="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
+        [ -s "$ffile" ] && FRONTEND_IMG="$(tr -d '\r\n' < "$ffile")" || FRONTEND_IMG="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"
+
+        printf '[deploy][main] backend -> %s\n' "$BACKEND_IMG"
+        printf '[deploy][main] frontend -> %s\n' "$FRONTEND_IMG"
+
+        kubectl -n main set image deploy/backend  backend="$BACKEND_IMG"
+        kubectl -n main set image deploy/frontend frontend="$FRONTEND_IMG"
+
+        kubectl -n main get deploy backend  -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+        kubectl -n main get deploy frontend -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
+
+        set +e
+        kubectl -n main rollout status deploy/frontend --timeout=600s
+        FE_RC=$?
+        kubectl -n main rollout status deploy/backend  --timeout=600s
+        BK_RC=$?
+        set -e
+
+        if [ $BK_RC -ne 0 ] || [ $FE_RC -ne 0 ]; then
+          echo "== DIAGNOSTICS (main) =="
+          kubectl -n main get rs -o wide
+          kubectl -n main get pods -o wide
+          kubectl -n main get events --sort-by=.metadata.creationTimestamp | tail -n 100 || true
+          kubectl -n main describe deploy/backend || true
+          kubectl -n main describe pods -l app=backend || true
+          exit 1
+        fi

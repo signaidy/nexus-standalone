@@ -11,7 +11,7 @@ import SpectraSystems.Nexus.dto.SignUpRequest;
 import SpectraSystems.Nexus.services.AuthenticationService;
 
 @RestController
-@RequestMapping("/nexus/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthenticationController {
 

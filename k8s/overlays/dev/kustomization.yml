@@ -1,53 +1,116 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 namespace: dev
 resources:
-  - ../../base
-
-replicas:
-  - name: backend
-    count: 1
-  - name: frontend
-    count: 1
-
+- ../../base
+- ingressclass-gce.yml
+- backend-backendconfig.yml
+- frontend-backendconfig.yml
+- ingress.yml
 images:
-  - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
-    newTag: dev
-  - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend
-    newTag: dev
-
-configMapGenerator:
-  - name: nexus-backend-config
-    literals:
-      - SPRING_PROFILES_ACTIVE=dev
-      - DB_URL=jdbc:oracle:thin:@//oracle.db.svc.cluster.local:1521/FREEPDB1
-  - name: nexus-frontend-config    
-    behavior: merge
-    literals:
-      - PUBLIC_BACKEND_URL=http://backend:8080/nexus
-
-secretGenerator:
-  - name: nexus-backend-secrets
-    envs:
-      - secrets.env
-
+- name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
+  newName: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
+  newTag: manual-20251002-180804
+- name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend
+  newName: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend
+  newTag: manual-20251002-183401
+replicas:
+- count: 1
+  name: backend
+- count: 1
+  name: frontend
 generatorOptions:
   disableNameSuffixHash: true
-
-# Keep your existing strategic-merge patches (env + wait-db)
+configMapGenerator:
+- literals:
+  - SPRING_PROFILES_ACTIVE=dev
+  - DB_URL=jdbc:oracle:thin:@//oracle.db.svc.cluster.local:1521/FREEPDB1
+  name: nexus-backend-config
+- literals:
+  - PUBLIC_BACKEND_URL=/nexus
+  - BACKEND_INTERNAL_URL=http://backend:8080/nexus
+  name: nexus-frontend-config
+secretGenerator:
+- envs:
+  - secrets.env
+  name: nexus-backend-secrets
+  # Frontend Service: attach BackendConfig
+  # Backend Service: attach BackendConfig
+  # JSON6902 patch to add env var PUBLIC_BACKEND_URL to frontend Deployment
+  
 patchesStrategicMerge:
-  - backend-env.patch.yml
-  - backend-waitdb.patch.yml
-  - backend-probes.jsonpatch.yml
-  - imagepull-always-backend.patch.yml
-  - imagepull-always-frontend.patch.yml
+  - pull-always.yaml
 
-# Use JSON6902 patch to fully replace probes with tcpSocket versions
 patches:
-  - target:
-      group: apps
-      version: v1
-      kind: Deployment
-      name: backend
-    path: backend-probes.jsonpatch.yml
+- path: backend-env.patch.yml
+  target:
+    group: apps
+    kind: Deployment
+    name: backend
+    version: v1
+- path: backend-waitdb.patch.yml
+  target:
+    group: apps
+    kind: Deployment
+    name: backend
+    version: v1
+- path: backend-probes.jsonpatch.yml
+  target:
+    group: apps
+    kind: Deployment
+    name: backend
+    version: v1
+- patch: |-
+    - op: add
+      path: /metadata/annotations/cloud.google.com~1neg
+      value: '{"ingress": true}'
+    - op: add
+      path: /spec/ports/0/name
+      value: http
+  target:
+    kind: Service
+    name: frontend
+    version: v1
+- patch: |-
+    - op: add
+      path: /metadata/annotations/cloud.google.com~1neg
+      value: '{"ingress": true}'
+    - op: add
+      path: /spec/ports/0/name
+      value: http
+  target:
+    kind: Service
+    name: backend
+    version: v1
+- patch: |-
+    - op: add
+      path: /metadata/annotations/beta.cloud.google.com~1backend-config
+      value: '{"default":"frontend-bc"}'
+  target:
+    kind: Service
+    name: frontend
+    version: v1
+- patch: "- op: add\n  path: /metadata/annotations/beta.cloud.google.com~1backend-config\n
+    \ value: '{\"default\":\"backend-bc\"}'\n  "
+  target:
+    kind: Service
+    name: backend
+    version: v1
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: frontend
+    spec:
+      template:
+        spec:
+          containers:
+            - name: frontend
+              env:
+                - name: PUBLIC_BACKEND_URL
+                  value: "/nexus"
+  target:
+    group: apps
+    kind: Deployment
+    name: frontend
+    version: v1

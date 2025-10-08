@@ -8,8 +8,7 @@ import { actions } from '../../src/routes/login/+page.server';
 
 describe('login action - failure', () => {
   it('returns fail() with status and message on non-200', async () => {
-    // @ts-expect-error
-    global.fetch = vi.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       text: async () => 'Unauthorized'
@@ -22,7 +21,7 @@ describe('login action - failure', () => {
       })
     } as any;
 
-    const result: any = await actions.default({ cookies, request } as any);
+    const result: any = await actions.default({ cookies, request, fetch: fetchMock } as any);
     expect(result?.status).toBe(401);
     expect(String(result?.data?.error || '')).toContain('Login failed (401)');
   });

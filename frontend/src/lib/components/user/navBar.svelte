@@ -80,12 +80,7 @@
       </Button>
     {/each}
   {/if}
-  <form
-    method="POST"
-    action="administration?/logOut"
-    class="flex flex-col"
-    use:enhance
-  >
+  <form method="POST" action="/logout" class="flex flex-col">
     <Button class="justify-normal" type="submit">
       <LogOut class="shrink-0 mr-2 h-4 w-4" />Log Out
     </Button>

@@ -51,12 +51,24 @@ jobs:
         if: steps.changes.outputs.backend == 'true'
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Preflight ping Sonar
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          echo "Pinging ${SONAR_HOST_URL}"
+          curl -sS -I "${SONAR_HOST_URL}/api/server/version"
+
       - name: Test + Jacoco + Sonar (wait for Quality Gate)
         if: steps.changes.outputs.backend == 'true'
         run: |
-          ./gradlew --no-daemon clean test jacocoTestReport sonar \
+          ./gradlew --no-daemon clean test jacocoTestReport sonarqube \
             -Dsonar.host.url="${SONAR_HOST_URL}" \
-            -Dsonar.login="${SONAR_TOKEN}" \
+            -Dsonar.token="${SONAR_TOKEN}" \
+            -Dsonar.java.coveragePlugin=jacoco \
+            -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml \
+            -Dsonar.junit.reportPaths=build/test-results/test \
+            -Dsonar.sources=src/main/java \
+            -Dsonar.tests=src/test/java \
+            -Dsonar.java.binaries=build/classes/java/main \
             -Dsonar.qualitygate.wait=true \
             --info
 

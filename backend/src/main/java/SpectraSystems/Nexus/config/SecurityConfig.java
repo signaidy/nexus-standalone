@@ -62,18 +62,35 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers(HttpMethod.PUT,  "/nexus/flights/deactivateTicket/{id}", "/nexus/flights/deactivate/{flightNumber}", "/nexus/reservations/cancel/{id}", "/nexus/reservations/cancelHotel/{hotelId}" ).permitAll()
-                .requestMatchers(HttpMethod.POST, "/nexus/auth/signup", "/nexus/auth/login").permitAll()
-                .requestMatchers(HttpMethod.GET, "/nexus/flights", "/nexus/flights/{id}", "/nexus/reservations", "/nexus/reservations/{id}", "/nexus/reservations/user/{userId}", "/nexus/aboutus", "/nexus/aboutus/{id}", "/nexus/flights/avianca/one-way-flights", "/nexus/flights/avianca/round-trip-flights" , "/nexus/flights/avianca/cities", "/nexus/reservations/hotelsearch", "/nexus/reservations/cities", "/nexus/reservations/hotelsearch/{id}", "/nexus/flights/user/{userId}").permitAll()
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                // health & auth (both with and without /nexus)
+                .requestMatchers("/healthz", "/nexus/healthz", "/actuator/health", "/nexus/actuator/health").permitAll()
+                .requestMatchers("/auth/**", "/nexus/auth/**").permitAll()
+
+                // preflight
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // public GET APIs (both forms)
+                .requestMatchers(HttpMethod.GET,
+                    "/aboutus/**", "/nexus/aboutus/**",
+                    "/flights/**", "/nexus/flights/**",
+                    "/reservations/**", "/nexus/reservations/**"
+                ).permitAll()
+
+                // public PUTs (both forms)
+                .requestMatchers(HttpMethod.PUT,
+                    "/flights/deactivateTicket/**", "/nexus/flights/deactivateTicket/**",
+                    "/flights/deactivate/**",       "/nexus/flights/deactivate/**",
+                    "/reservations/cancel/**",      "/nexus/reservations/cancel/**",
+                    "/reservations/cancelHotel/**", "/nexus/reservations/cancelHotel/**"
+                ).permitAll()
+
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-            return http.build();
-    }
 
+        return http.build();
+    }
 }

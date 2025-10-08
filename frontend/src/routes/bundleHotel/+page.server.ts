@@ -2,7 +2,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import { env } from '$env/dynamic/public';
 
 export function load({ locals, url }) {
-    const base = env.PUBLIC_BACKEND_URL || 'http://localhost:8080/nexus';
+    const base = env.PUBLIC_BACKEND_URL || '/nexus';
     async function getCitiesHotels() {
         const response = await fetch(`${base}/reservations/cities`, {
           method: "GET",

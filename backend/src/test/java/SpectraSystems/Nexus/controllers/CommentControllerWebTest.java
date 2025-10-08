@@ -36,7 +36,7 @@ class CommentControllerWebTest {
     void getAllComments_ok() throws Exception {
         when(commentService.getAllComments()).thenReturn(List.of(new Comment(), new Comment()));
 
-        mvc.perform(get("/nexus/comments").accept(APPLICATION_JSON))
+        mvc.perform(get("/comments").accept(APPLICATION_JSON))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
 
@@ -48,10 +48,10 @@ class CommentControllerWebTest {
         when(commentService.getCommentById(1L)).thenReturn(Optional.of(new Comment()));
         when(commentService.getCommentById(99L)).thenReturn(Optional.empty());
 
-        mvc.perform(get("/nexus/comments/{id}", 1L).accept(APPLICATION_JSON))
+        mvc.perform(get("/comments/{id}", 1L).accept(APPLICATION_JSON))
            .andExpect(status().isOk());
 
-        mvc.perform(get("/nexus/comments/{id}", 99L).accept(APPLICATION_JSON))
+        mvc.perform(get("/comments/{id}", 99L).accept(APPLICATION_JSON))
            .andExpect(status().isNotFound());
     }
 
@@ -59,7 +59,7 @@ class CommentControllerWebTest {
     void createComment_created() throws Exception {
         when(commentService.createComment(any(Comment.class))).thenReturn(new Comment());
 
-        mvc.perform(post("/nexus/comments")
+        mvc.perform(post("/comments")
                 .contentType(APPLICATION_JSON)
                 .accept(APPLICATION_JSON)
                 .content("{}"))
@@ -72,7 +72,7 @@ class CommentControllerWebTest {
     void updateComment_ok() throws Exception {
         when(commentService.updateComment(eq(7L), any(Comment.class))).thenReturn(new Comment());
 
-        mvc.perform(put("/nexus/comments/{id}", 7L)
+        mvc.perform(put("/comments/{id}", 7L)
                 .contentType(APPLICATION_JSON)
                 .accept(APPLICATION_JSON)
                 .content("{\"text\":\"hello\"}"))
@@ -85,7 +85,7 @@ class CommentControllerWebTest {
     void deleteComment_noContent() throws Exception {
         doNothing().when(commentService).deleteComment(5L);
 
-        mvc.perform(delete("/nexus/comments/{id}", 5L))
+        mvc.perform(delete("/comments/{id}", 5L))
            .andExpect(status().isNoContent());
 
         verify(commentService).deleteComment(5L);

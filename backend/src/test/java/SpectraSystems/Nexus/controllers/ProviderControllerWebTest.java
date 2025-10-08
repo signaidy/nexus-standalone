@@ -42,7 +42,7 @@ class ProviderControllerWebTest {
     void getAllProviders_ok() throws Exception {
         when(providerService.getAllProviders()).thenReturn(List.of(new Provider(), new Provider()));
 
-        mvc.perform(get("/nexus/providers"))
+        mvc.perform(get("/providers"))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
 
@@ -54,10 +54,10 @@ class ProviderControllerWebTest {
         when(providerService.getProviderById(42L)).thenReturn(Optional.of(new Provider()));
         when(providerService.getProviderById(99L)).thenReturn(Optional.empty());
 
-        mvc.perform(get("/nexus/providers/{id}", 42))
+        mvc.perform(get("/providers/{id}", 42))
            .andExpect(status().isOk());
 
-        mvc.perform(get("/nexus/providers/{id}", 99))
+        mvc.perform(get("/providers/{id}", 99))
            .andExpect(status().isNotFound());
     }
 
@@ -65,7 +65,7 @@ class ProviderControllerWebTest {
     void getProviderByType_ok() throws Exception {
         when(providerService.getProviderByType(Type.AEROLINEA)).thenReturn(List.of());
 
-        mvc.perform(get("/nexus/providers/type/{type}", "AEROLINEA"))
+        mvc.perform(get("/providers/type/{type}", "AEROLINEA"))
            .andExpect(status().isOk())
            .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
 
@@ -76,7 +76,7 @@ class ProviderControllerWebTest {
     void createProvider_created() throws Exception {
         when(providerService.createProvider(any(Provider.class))).thenReturn(new Provider());
 
-        mvc.perform(post("/nexus/providers")
+        mvc.perform(post("/providers")
                 .contentType(APPLICATION_JSON)
                 .content("{}"))
            .andExpect(status().isCreated());
@@ -88,7 +88,7 @@ class ProviderControllerWebTest {
     void updateProvider_ok() throws Exception {
         when(providerService.updateProvider(any(Provider.class))).thenReturn(new Provider());
 
-        mvc.perform(put("/nexus/providers/{id}", 7L)
+        mvc.perform(put("/providers/{id}", 7L)
                 .contentType(APPLICATION_JSON)
                 .content("{\"providerName\":\"X\"}"))
            .andExpect(status().isOk());
@@ -100,7 +100,7 @@ class ProviderControllerWebTest {
     void updateProvider_notFound() throws Exception {
         when(providerService.updateProvider(any(Provider.class))).thenReturn(null);
 
-        mvc.perform(put("/nexus/providers/{id}", 7L)
+        mvc.perform(put("/providers/{id}", 7L)
                 .contentType(APPLICATION_JSON)
                 .content("{\"providerName\":\"X\"}"))
            .andExpect(status().isNotFound());
@@ -110,7 +110,7 @@ class ProviderControllerWebTest {
     void deleteProvider_noContent() throws Exception {
         doNothing().when(providerService).deleteProvider(5L);
 
-        mvc.perform(delete("/nexus/providers/{id}", 5L))
+        mvc.perform(delete("/providers/{id}", 5L))
            .andExpect(status().isNoContent());
 
         verify(providerService).deleteProvider(5L);
