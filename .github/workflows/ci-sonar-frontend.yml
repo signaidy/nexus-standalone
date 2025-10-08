@@ -68,6 +68,15 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=spectra-systems_nexus-frontend
+            -Dsonar.projectName=Nexus Frontend
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=**/.svelte-kit/**,**/dist/**,**/*.config.*,*vite-env.d.ts
+            -Dsonar.coverage.exclusions=**/*.test.ts,**/tests/**,**/*.config.*,*vite-env.d.ts
+
 
       - name: SonarQube Quality Gate
         if: steps.changes.outputs.frontend == 'true'
