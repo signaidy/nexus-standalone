@@ -69,8 +69,7 @@ steps:
   - name: deploy
     image: alpine/k8s:1.30.3 
     pull: if-not-exists
-    entrypoint: ["/bin/sh","-lc"]
-    working_dir: /drone/src
+    working_dir: /drone/src           # repo root
     resources:
       requests: { cpu: 1, memory: 1Gi }
       limits:   { cpu: 2, memory: 4Gi }
@@ -86,6 +85,7 @@ steps:
         kubectl version --client=true || true
         : "${PROJECT_ID:?}"; : "${REGION:?}"; : "${REPO:?}"
 
+        # ensure kustomize overlay has the expected env file
         mkdir -p k8s/overlays/dev
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
           printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
@@ -93,6 +93,7 @@ steps:
           : > k8s/overlays/dev/secrets.env
         fi
 
+        # write dynamic image tags
         mkdir -p kustom-override/dev
         cat > kustom-override/dev/kustomization.yaml <<EOF
         apiVersion: kustomize.config.k8s.io/v1beta1
@@ -108,6 +109,7 @@ steps:
             newTag: ${DRONE_COMMIT_SHA}
         EOF
 
+        # deploy + wait
         kubectl apply -k kustom-override/dev
         kubectl -n dev rollout status deploy/backend  --timeout=300s
         kubectl -n dev rollout status deploy/frontend --timeout=300s
