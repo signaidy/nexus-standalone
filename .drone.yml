@@ -193,8 +193,8 @@ steps:
       - cd frontend
       - npm ci --no-audit --no-fund --loglevel=warn
       - npm run build
-      - npm prune --omit=uat --omit=optional
-      - npm dedupe --omit=uat || true
+      - npm prune --omit=dev --omit=optional
+      - npm dedupe --omit=dev || true
       - ls -lh build || true
       - du -sh build node_modules || true
     resources:
@@ -337,8 +337,8 @@ steps:
       - cd frontend
       - npm ci --no-audit --no-fund --loglevel=warn
       - npm run build
-      - npm prune --omit=main --omit=optional
-      - npm dedupe --omit=main || true
+      - npm prune --omit=dev --omit=optional
+      - npm dedupe --omit=dev || true
       - ls -lh build || true
       - du -sh build node_modules || true
     resources:
