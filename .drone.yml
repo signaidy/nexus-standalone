@@ -67,13 +67,13 @@ steps:
       limits:   { cpu: 2, memory: 4Gi }
 
   - name: deploy
-    image: registry.k8s.io/kubectl
+    image: alpine/k8s:1.30.3 
     pull: if-not-exists
     entrypoint: ["/bin/sh","-lc"]
-    working_dir: /drone/src          # <- make sure we’re in the repo root
+    working_dir: /drone/src
     resources:
-      requests: { cpu: 0.1, memory: 128Mi }
-      limits:   { cpu: 0.5, memory: 256Mi }
+      requests: { cpu: 250m, memory: 256Mi }
+      limits:   { cpu: 1,    memory: 512Mi }
     environment:
       PROJECT_ID: spectra-kube
       REGION: us-central1
@@ -82,15 +82,10 @@ steps:
         from_secret: dev_secrets_env
     commands:
       - |
-        set -euxo 
-        echo "[debug] shells in image:"; ls -l /bin || true; ls -l /usr/bin | head -50 || true
-        echo "[deploy] start"
-        which kubectl || true
+        set -eux
         kubectl version --client=true || true
-
         : "${PROJECT_ID:?}"; : "${REGION:?}"; : "${REPO:?}"
 
-        # kustomize expects this file to exist; create or populate from secret
         mkdir -p k8s/overlays/dev
         if [ -n "${APP_SECRETS_ENV:-}" ]; then
           printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
@@ -113,13 +108,9 @@ steps:
             newTag: ${DRONE_COMMIT_SHA}
         EOF
 
-        echo "[deploy] applying kustomize overlay"
         kubectl apply -k kustom-override/dev
-
-        echo "[deploy] waiting for rollouts"
-        kubectl -n dev rollout status deploy/backend --timeout=300s
+        kubectl -n dev rollout status deploy/backend  --timeout=300s
         kubectl -n dev rollout status deploy/frontend --timeout=300s
-        echo "[deploy] done"
 
 ---
 kind: pipeline
