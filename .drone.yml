@@ -72,8 +72,8 @@ steps:
     entrypoint: ["/bin/sh","-lc"]
     working_dir: /drone/src
     resources:
-      requests: { cpu: 250m, memory: 256Mi }
-      limits:   { cpu: 1,    memory: 512Mi }
+      requests: { cpu: 1, memory: 1Gi }
+      limits:   { cpu: 2, memory: 4Gi }
     environment:
       PROJECT_ID: spectra-kube
       REGION: us-central1
