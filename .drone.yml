@@ -12,23 +12,19 @@ steps:
       PROJECT_ID: spectra-kube
       REGION: us-central1
       REPO: nexus
+      CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
     commands:
-      - set -euo pipefail
-      # seed + echo
+      - set -eu
       - PROJECT_ID="${PROJECT_ID:-spectra-kube}"; REGION="${REGION:-us-central1}"; REPO="${REPO:-nexus}"
       - echo "[env] PROJECT_ID=${PROJECT_ID} REGION=${REGION} REPO=${REPO}"
-      # make gcloud the source of truth
       - gcloud config set project "${PROJECT_ID}"
-      # quick write test to the Cloud Build bucket (no listing required)
       - CB_BUCKET="${PROJECT_ID}_cloudbuild"; echo "[env] CB_BUCKET=${CB_BUCKET}"
       - printf "perm-test %s\n" "$(date -u +%FT%TZ)" > /tmp/perm.txt
       - gcloud storage cp /tmp/perm.txt "gs://${CB_BUCKET}/perm-test.txt"
-      # build + push
       - REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
       - echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
       - cd backend
       - gcloud builds submit --region="${REGION}" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .
-      # (optional) record digest for deploy; remove --location to avoid the flag error on slim image
       - gcloud artifacts docker images describe "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" --format="get(image_summary.digest)" > /drone/src/backend-image.txt || true
 
   - name: frontend-build
@@ -60,8 +56,9 @@ steps:
       PROJECT_ID: spectra-kube
       REGION: us-central1
       REPO: nexus
+      CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
     commands:
-      - set -euo pipefail
+      - set -eu
       - PROJECT_ID="${PROJECT_ID:-spectra-kube}"; REGION="${REGION:-us-central1}"; REPO="${REPO:-nexus}"
       - gcloud config set project "${PROJECT_ID}"
       - REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
