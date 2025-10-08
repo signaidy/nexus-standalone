@@ -82,7 +82,7 @@ steps:
         from_secret: dev_secrets_env
     commands:
       - |
-        set -euxo pipefail
+        set -euxo 
         echo "[debug] shells in image:"; ls -l /bin || true; ls -l /usr/bin | head -50 || true
         echo "[deploy] start"
         which kubectl || true
