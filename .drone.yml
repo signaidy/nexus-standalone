@@ -165,7 +165,7 @@ steps:
       - --verbosity=info
       - --context=dir://$DRONE_WORKSPACE/backend
       - --dockerfile=$DRONE_WORKSPACE/backend/Dockerfile
-      - --destination=us-central1-docker.pkg.uat/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
+      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
       - --cache=true
       - --cache-ttl=168h
       - --snapshot-mode=time
@@ -208,7 +208,7 @@ steps:
       - --verbosity=debug
       - --context=dir://$DRONE_WORKSPACE/frontend
       - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
-      - --destination=us-central1-docker.pkg.uat/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
+      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
       - --cache=true
       - --cache-ttl=168h
       - --snapshot-mode=time
@@ -239,7 +239,7 @@ steps:
         set -eux
 
         : "${PROJECT_ID:?missing}"; : "${REGION:?missing}"; : "${REPO:?missing}"
-        REGISTRY="${REGION}-docker.pkg.uat/${PROJECT_ID}/${REPO}"
+        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
         printf '[deploy][uat] registry=%s\n' "$REGISTRY"
 
         # Secrets: prefer repo file for UAT, else Drone secret
@@ -254,7 +254,7 @@ steps:
 
         # Minimum validation
         for k in DB_USER DB_PASS; do
-          grep -E "^[[:space:]]*$k=" k8s/overlays/uat/secrets.env >/uat/null || {
+          grep -E "^[[:space:]]*$k=" k8s/overlays/uat/secrets.env >/dev/null || {
             echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
         done
 
@@ -309,7 +309,7 @@ steps:
       - --verbosity=info
       - --context=dir://$DRONE_WORKSPACE/backend
       - --dockerfile=$DRONE_WORKSPACE/backend/Dockerfile
-      - --destination=us-central1-docker.pkg.main/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
+      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend:${DRONE_COMMIT_SHA}
       - --cache=true
       - --cache-ttl=168h
       - --snapshot-mode=time
@@ -352,7 +352,7 @@ steps:
       - --verbosity=debug
       - --context=dir://$DRONE_WORKSPACE/frontend
       - --dockerfile=$DRONE_WORKSPACE/frontend/Dockerfile
-      - --destination=us-central1-docker.pkg.main/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
+      - --destination=us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-frontend:${DRONE_COMMIT_SHA}
       - --cache=true
       - --cache-ttl=168h
       - --snapshot-mode=time
@@ -383,7 +383,7 @@ steps:
         set -eux
 
         : "${PROJECT_ID:?missing}"; : "${REGION:?missing}"; : "${REPO:?missing}"
-        REGISTRY="${REGION}-docker.pkg.main/${PROJECT_ID}/${REPO}"
+        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
         printf '[deploy][main] registry=%s\n' "$REGISTRY"
 
         # Secrets: prefer repo file for main, else Drone secret
@@ -397,7 +397,7 @@ steps:
         fi
 
         for k in DB_USER DB_PASS; do
-          grep -E "^[[:space:]]*$k=" k8s/overlays/main/secrets.env >/main/null || {
+          grep -E "^[[:space:]]*$k=" k8s/overlays/main/secrets.env >/dev/null || {
             echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
         done
 
