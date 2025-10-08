@@ -86,99 +86,67 @@ steps:
       - |
         set -eux
 
-        # 1) required env + registry (still deploys fine even if these are blank because we use digests)
+        # 1) required env + registry (we still prefer digests, but this is used as fallback)
         : "${PROJECT_ID:?missing}"; : "${REGION:?missing}"; : "${REPO:?missing}"
         REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
         printf '[deploy] registry=%s\n' "$REGISTRY"
 
-        # 2) ensure overlay secret file exists for kustomize
+        # 2) ensure overlay secret file exists with real contents
         mkdir -p k8s/overlays/dev
-        if [ -n "${APP_SECRETS_ENV:-}" ]; then
-          printf '%s\n' "$APP_SECRETS_ENV" > k8s/overlays/dev/secrets.env
+
+        # Prefer repo file for dev (branch-specific), else use Drone secret
+        if [ -f backend/.env.dev ]; then
+          # normalize line endings
+          tr -d '\r' < backend/.env.dev > k8s/overlays/dev/secrets.env
+        elif [ -n "${APP_SECRETS_ENV:-}" ]; then
+          printf '%s\n' "$APP_SECRETS_ENV" | tr -d '\r' > k8s/overlays/dev/secrets.env
         else
-          : > k8s/overlays/dev/secrets.env
+          echo "ERROR: no secrets provided (backend/.env.dev missing and APP_SECRETS_ENV empty)"; exit 1
         fi
 
-        # 3) apply infra (svc/cm/ing/policies/etc)
+        # Validate required keys (add more if your deployment expects more)
+        for k in DB_USER DB_PASS; do
+          grep -E "^[[:space:]]*$k=" k8s/overlays/dev/secrets.env >/dev/null || {
+            echo "ERROR: required key '$k' missing in secrets.env"; exit 1; }
+        done
+
+        # 3) apply infra (svc/cm/ing/secrets from secretGenerator)
         kubectl apply -k k8s/overlays/dev
 
-        # 4) image digests (strip CR/LF), fallback to tag if files missing
+        # 4) image digests (strip CR/LF), fallback to tags if files not present
         bfile=/drone/src/backend-image.txt
         ffile=/drone/src/frontend-image.txt
         BACKEND_IMG=""; FRONTEND_IMG=""
+
         [ -s "$bfile" ] && BACKEND_IMG="$(tr -d '\r\n' < "$bfile")" || BACKEND_IMG="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
         [ -s "$ffile" ] && FRONTEND_IMG="$(tr -d '\r\n' < "$ffile")" || FRONTEND_IMG="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"
 
         printf '[deploy] backend -> %s\n' "$BACKEND_IMG"
         printf '[deploy] frontend -> %s\n' "$FRONTEND_IMG"
 
-        # 5) rollout behavior hardening on both deployments
-        #    - Always pull (avoid cached image), quicker failures, zero unavailability
-        kubectl -n dev patch deploy/backend  --type='merge' -p '{
-          "spec":{
-            "progressDeadlineSeconds":600,
-            "strategy":{"type":"RollingUpdate","rollingUpdate":{"maxUnavailable":0,"maxSurge":1}},
-            "template":{"spec":{
-              "terminationGracePeriodSeconds":15,
-              "containers":[{"name":"backend","imagePullPolicy":"Always"}]
-            }}
-          }
-        }' || true
-
-        kubectl -n dev patch deploy/frontend --type='merge' -p '{
-          "spec":{
-            "progressDeadlineSeconds":600,
-            "strategy":{"type":"RollingUpdate","rollingUpdate":{"maxUnavailable":0,"maxSurge":1}},
-            "template":{"spec":{
-              "terminationGracePeriodSeconds":15,
-              "containers":[{"name":"frontend","imagePullPolicy":"Always"}]
-            }}
-          }
-        }' || true
-
-        # 6) set images by digest/tag
+        # 5) set exact images and wait
         kubectl -n dev set image deploy/backend  backend="$BACKEND_IMG"
         kubectl -n dev set image deploy/frontend frontend="$FRONTEND_IMG"
 
-        echo "[deploy] images now set to:"
+        # show what’s set
         kubectl -n dev get deploy backend  -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
         kubectl -n dev get deploy frontend -o=jsonpath='{.spec.template.spec.containers[*].image}{"\n"}'
 
-        # 7) wait for rollout with extended timeout; on failure, dump useful diagnostics
+        # 6) wait; if backend fails, print useful diagnostics
         set +e
-        kubectl -n dev rollout status deploy/backend  --timeout=600s
-        BK_RC=$?
         kubectl -n dev rollout status deploy/frontend --timeout=600s
         FE_RC=$?
+        kubectl -n dev rollout status deploy/backend  --timeout=600s
+        BK_RC=$?
         set -e
 
         if [ $BK_RC -ne 0 ] || [ $FE_RC -ne 0 ]; then
           echo "== DIAGNOSTICS =="
-          echo "-- ReplicaSets --"
           kubectl -n dev get rs -o wide
-          echo "-- Pods --"
           kubectl -n dev get pods -o wide
-          echo "-- Events (last 100) --"
           kubectl -n dev get events --sort-by=.metadata.creationTimestamp | tail -n 100 || true
-
-          echo "-- Describe backend --"
           kubectl -n dev describe deploy/backend || true
-          kubectl -n dev describe rs -l app=backend || true
           kubectl -n dev describe pods -l app=backend || true
-
-          echo "-- Describe frontend --"
-          kubectl -n dev describe deploy/frontend || true
-          kubectl -n dev describe rs -l app=frontend || true
-          kubectl -n dev describe pods -l app=frontend || true
-
-          echo "-- Recent logs (backend) --"
-          BK_POD="$(kubectl -n dev get pods -l app=backend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
-          [ -n "$BK_POD" ] && kubectl -n dev logs "$BK_POD" --all-containers --tail=200 || true
-
-          echo "-- Recent logs (frontend) --"
-          FE_POD="$(kubectl -n dev get pods -l app=frontend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
-          [ -n "$FE_POD" ] && kubectl -n dev logs "$FE_POD" --all-containers --tail=200 || true
-
           exit 1
         fi
 
