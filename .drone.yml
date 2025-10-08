@@ -8,30 +8,24 @@ service_account_name: drone-pipeline
 steps:
   - name: build-backend
     image: google/cloud-sdk:slim
-    environment:
-      PROJECT_ID: spectra-kube
-      REGION: us-central1
-      REPO: nexus
-      CLOUDSDK_CORE_PROJECT: spectra-kube
     commands:
       - set -eux
-      # fail fast if any var is empty
-      - 'test -n "${PROJECT_ID}" -a -n "${REGION}" -a -n "${REPO}"'
-      - gcloud --version
-      - gcloud auth list
+      # defaults if Drone doesn't inject env
+      - 'export PROJECT_ID=${PROJECT_ID:-spectra-kube} REGION=${REGION:-us-central1} REPO=${REPO:-nexus}'
+      - 'printf "[env] PROJECT_ID=%s REGION=%s REPO=%s\n" "$PROJECT_ID" "$REGION" "$REPO"'
       - gcloud config set project "$PROJECT_ID"
 
-      # prove we can write to the Cloud Build bucket
+      # prove Cloud Build bucket access (same identity gcloud uses via Workload Identity)
       - 'echo "perm-test $(date -u +%FT%TZ)" > /tmp/perm.txt'
       - 'gcloud storage cp /tmp/perm.txt "gs://${PROJECT_ID}_cloudbuild/perm-test.txt"'
       - 'gcloud storage ls "gs://${PROJECT_ID}_cloudbuild" | head -n 3 || true'
 
       # build + push
       - cd backend
-      - 'REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"; echo "[backend] tagging to ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"'
+      - 'REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"; echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"'
       - 'gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .'
 
-      # record digest
+      # record digest for deploy
       - 'gcloud artifacts docker images describe "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" --location="$REGION" --format="get(image_summary.digest)" > /drone/src/backend-image.txt'
 
   - name: frontend-build
@@ -59,23 +53,18 @@ steps:
 
   - name: build-frontend
     image: google/cloud-sdk:slim
-    environment:
-      PROJECT_ID: spectra-kube
-      REGION: us-central1
-      REPO: nexus
-      CLOUDSDK_CORE_PROJECT: spectra-kube
     commands:
       - set -eux
-      - 'test -n "${PROJECT_ID}" -a -n "${REGION}" -a -n "${REPO}"'
-      - gcloud auth list
+      - 'export PROJECT_ID=${PROJECT_ID:-spectra-kube} REGION=${REGION:-us-central1} REPO=${REPO:-nexus}'
+      - 'printf "[env] PROJECT_ID=%s REGION=%s REPO=%s\n" "$PROJECT_ID" "$REGION" "$REPO"'
       - gcloud config set project "$PROJECT_ID"
 
-      # bucket preflight again
+      # (optional) bucket preflight again
       - 'echo "perm-test $(date -u +%FT%TZ)" > /tmp/perm2.txt'
-      - 'gcloud storage cp /tmp/perm2.txt "gs://${PROJECT_ID}_cloudbuild/perm-test-2.txt"'
+      - 'gcloud storage cp /tmp/perm2.txt "gs://${PROJECT_ID}_cloudbuild/perm-test-2.txt" || true'
 
       - cd frontend
-      - 'REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"; echo "[frontend] tagging to ${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"'
+      - 'REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"; echo "[frontend] ${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"'
       - 'gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" .'
       - 'gcloud artifacts docker images describe "${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" --location="$REGION" --format="get(image_summary.digest)" > /drone/src/frontend-image.txt'
 
