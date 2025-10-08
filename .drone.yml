@@ -13,38 +13,23 @@ steps:
       REGION: us-central1
       REPO: nexus
     commands:
-      - |
-        bash -lc $'set -euxo pipefail
-        # Seed + export
-        PROJECT_ID="${PROJECT_ID:-spectra-kube}"
-        REGION="${REGION:-us-central1}"
-        REPO="${REPO:-nexus}"
-        export PROJECT_ID REGION REPO
-        printf "[env] PROJECT_ID=%s REGION=%s REPO=%s\n" "$PROJECT_ID" "$REGION" "$REPO"
-
-        # Make gcloud the source of truth for project
-        gcloud config set project "$PROJECT_ID"
-        PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID
-        echo "[env] resolved PROJECT_ID from gcloud: $PROJECT_ID"
-
-        # Cloud Build bucket preflight (DIAGNOSTIC)
-        CB_BUCKET="${PROJECT_ID}_cloudbuild"
-        echo "[env] CB_BUCKET=${CB_BUCKET}"
-        printf "perm-test %s\n" "$(date -u +%FT%TZ)" > /tmp/perm.txt
-        echo "[env] writing gs://${CB_BUCKET}/perm-test.txt"
-        gcloud storage cp /tmp/perm.txt "gs://${CB_BUCKET}/perm-test.txt"
-        gcloud storage ls "gs://${CB_BUCKET}" | head -n 3 || true
-
-        # Build + push
-        REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
-        echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
-        cd backend
-        gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .
-
-        # Record digest for deploy
-        gcloud artifacts docker images describe "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" \
-          --location="$REGION" --format="get(image_summary.digest)" > /drone/src/backend-image.txt
-        '
+      - set -euo pipefail
+      # seed + echo
+      - PROJECT_ID="${PROJECT_ID:-spectra-kube}"; REGION="${REGION:-us-central1}"; REPO="${REPO:-nexus}"
+      - echo "[env] PROJECT_ID=${PROJECT_ID} REGION=${REGION} REPO=${REPO}"
+      # make gcloud the source of truth
+      - gcloud config set project "${PROJECT_ID}"
+      # quick write test to the Cloud Build bucket (no listing required)
+      - CB_BUCKET="${PROJECT_ID}_cloudbuild"; echo "[env] CB_BUCKET=${CB_BUCKET}"
+      - printf "perm-test %s\n" "$(date -u +%FT%TZ)" > /tmp/perm.txt
+      - gcloud storage cp /tmp/perm.txt "gs://${CB_BUCKET}/perm-test.txt"
+      # build + push
+      - REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+      - echo "[backend] ${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}"
+      - cd backend
+      - gcloud builds submit --region="${REGION}" --tag="${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" .
+      # (optional) record digest for deploy; remove --location to avoid the flag error on slim image
+      - gcloud artifacts docker images describe "${REGISTRY}/nexus-backend:${DRONE_COMMIT_SHA}" --format="get(image_summary.digest)" > /drone/src/backend-image.txt || true
 
   - name: frontend-build
     image: node:20-bullseye
@@ -76,27 +61,14 @@ steps:
       REGION: us-central1
       REPO: nexus
     commands:
-      - |
-        bash -lc '
-          set -eux
-
-          PROJECT_ID="${PROJECT_ID:-spectra-kube}"
-          REGION="${REGION:-us-central1}"
-          REPO="${REPO:-nexus}"
-
-          gcloud config set project "$PROJECT_ID"
-          PROJECT_ID="$(gcloud config get-value core/project --quiet)"; export PROJECT_ID
-
-          REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
-          echo "[frontend] ${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"
-
-          cd frontend
-          gcloud builds submit --region="$REGION" --tag="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" .
-
-          gcloud artifacts docker images describe \
-            "${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" \
-            --location="$REGION" --format="get(image_summary.digest)" > /drone/src/frontend-image.txt
-        '
+      - set -euo pipefail
+      - PROJECT_ID="${PROJECT_ID:-spectra-kube}"; REGION="${REGION:-us-central1}"; REPO="${REPO:-nexus}"
+      - gcloud config set project "${PROJECT_ID}"
+      - REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+      - echo "[frontend] ${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}"
+      - cd frontend
+      - gcloud builds submit --region="${REGION}" --tag="${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" .
+      - gcloud artifacts docker images describe "${REGISTRY}/nexus-frontend:${DRONE_COMMIT_SHA}" --format="get(image_summary.digest)" > /drone/src/frontend-image.txt || true
 
   - name: deploy
     image: alpine/k8s:1.30.3
