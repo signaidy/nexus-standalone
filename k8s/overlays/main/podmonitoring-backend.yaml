@@ -1,0 +1,17 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: nexus-backend
+  namespace: main
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+    - port: http
+      path: /nexus/actuator/prometheus
+      interval: 30s
+  targetLabels:
+    fromPod:
+      - name: app
+      - name: version

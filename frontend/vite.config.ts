@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [sveltekit()],
   build: { sourcemap: false },
   ssr: {
-    noExternal: ['lucide-svelte', 'bits-ui', 'cmdk-sv', 'tailwind-variants']
+    noExternal: ['lucide-svelte', 'bits-ui', 'cmdk-sv', 'tailwind-variants', 'prom-client']
   },
 
   test: {
