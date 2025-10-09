@@ -1,10 +1,11 @@
 apiVersion: batch/v1
 kind: Job
-metadata:
-  name: jmeter-run
+metadata:  
+  generateName: jmeter-
   labels:
     app: jmeter-run
 spec:
+  ttlSecondsAfterFinished: 600
   backoffLimit: 0
   template:
     metadata:
@@ -30,7 +31,7 @@ spec:
           mountPath: /ext
       containers:
       - name: jmeter
-        image: justb4/jmeter:5.6.3
+        image: alpine/jmeter:5.6.3
         imagePullPolicy: IfNotPresent
         env:
         - name: TARGET_BASE_URL
