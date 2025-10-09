@@ -43,6 +43,8 @@ secretGenerator:
   
 patches:
 - path: patch-loadtest-env.yaml
+- path: patch-locust-lb.yaml
+- path: patch-locust-metrics-port.yaml
 - path: pull-always.yaml
 - path: backend-env.patch.yml
   target:

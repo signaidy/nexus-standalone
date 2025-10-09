@@ -7,5 +7,5 @@ resources:
   - locust-service.yaml
   - locust-podmonitoring.yaml
   - jmeter-testplan-configmap.yaml
-  - jmeter-job.yaml
   - jmeter-podmonitoring.yaml
+  - jmeter-service.yaml 

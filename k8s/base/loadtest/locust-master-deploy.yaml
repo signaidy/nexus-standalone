@@ -36,7 +36,7 @@ spec:
         - name: locustfile
           mountPath: /mnt/locust
       - name: exporter
-        image: containersol/locust_exporter:v0.6.0
+        image: containersol/locust_exporter:latest
         env:
         - name: LOCUST_EXPORTER_URI
           value: "http://localhost:8089"
