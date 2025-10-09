@@ -6,7 +6,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: frontend
+      app: nexus
+      tier: frontend
   endpoints:
     - port: http
       path: /metrics

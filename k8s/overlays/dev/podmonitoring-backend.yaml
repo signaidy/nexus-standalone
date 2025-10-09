@@ -6,7 +6,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: backend
+      app: nexus
+      tier: backend
   endpoints:
     - port: http
       path: /nexus/actuator/prometheus
