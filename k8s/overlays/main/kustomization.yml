@@ -42,11 +42,11 @@ secretGenerator:
   
 patchesStrategicMerge:
   - pull-always.yaml
+  - patch-loadtest-env.yaml          # sets LOCUST_HOST / TARGET_BASE_URL per env
+  - patch-locust-lb.yaml             # Service -> LoadBalancer
+  - patch-locust-metrics-port.yaml   # adds port 9646 on Service
 
 patches:
-- path: patch-loadtest-env.yaml
-- path: patch-locust-lb.yaml
-- path: patch-locust-metrics-port.yaml
 - path: backend-env.patch.yml
   target:
     group: apps
