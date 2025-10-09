@@ -1,0 +1,14 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: jmeter-run
+  labels:
+    app.kubernetes.io/part-of: jmeter
+spec:
+  selector:
+    matchLabels:
+      app: jmeter-run
+  endpoints:
+  - port: jmx-metrics
+    path: /metrics
+    interval: 30s

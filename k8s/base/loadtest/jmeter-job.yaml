@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jmeter-run
+  labels:
+    app: jmeter-run
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: jmeter-run
+        jmeter-metrics: "true"
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: init-jars
+        image: curlimages/curl:8.7.1
+        args:
+        - sh
+        - -lc
+        - >
+          set -e;
+          mkdir -p /ext;
+          curl -L -o /ext/jmeter-prometheus-listener.jar
+          https://github.com/kolesnikovm/jmeter-prometheus-listener/releases/download/2.6.3/jmeter-prometheus-listener-2.6.3.jar;
+          ls -l /ext
+        volumeMounts:
+        - name: jmeter-ext
+          mountPath: /ext
+      containers:
+      - name: jmeter
+        image: justb4/jmeter:5.6.3
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: TARGET_BASE_URL
+          value: "http://backend:8080/nexus"
+        - name: JMETER_HOME
+          value: "/opt/apache-jmeter-5.6.3"
+        command: ["sh","-lc"]
+        args:
+        - >
+          cp /ext/*.jar $JMETER_HOME/lib/ext/ &&
+          jmeter -n -t /testplan/test.jmx
+          -JtargetBaseUrl=${TARGET_BASE_URL}
+          -Jthreads=50 -Jrampup=10 -Jduration=300;
+          sleep 20
+        ports:
+        - name: jmx-metrics
+          containerPort: 9270
+        resources:
+          requests: { cpu: "500m", memory: "1Gi" }
+          limits:   { cpu: "2",    memory: "2Gi" }
+        volumeMounts:
+        - name: testplan
+          mountPath: /testplan
+        - name: jmeter-ext
+          mountPath: /ext
+      volumes:
+      - name: testplan
+        configMap:
+          name: jmeter-testplan
+      - name: jmeter-ext
+        emptyDir: {}

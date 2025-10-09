@@ -1,0 +1,22 @@
+# k8s/overlays/monitoring/grafana-datasources.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  gmp-prom.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: GMP (Prometheus)
+        type: prometheus
+        access: proxy
+        isDefault: true
+        url: http://localhost:9090          # placeholder; datasource-syncer will overwrite to monitoring.googleapis.com
+        jsonData:
+          httpMethod: GET                    # required for GMP API
+          prometheusType: Prometheus
+          prometheusVersion: 2.40.0
+        editable: true
