@@ -65,7 +65,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // health & auth (both with and without /nexus)
-                .requestMatchers("/healthz", "/nexus/healthz", "/actuator/health", "/nexus/actuator/health").permitAll()
+                .requestMatchers("/healthz", "/nexus/healthz", "/actuator/health", "/nexus/actuator/health", "/actuator/**", "/nexus/actuator/**").permitAll()
                 .requestMatchers("/auth/**", "/nexus/auth/**").permitAll()
 
                 // preflight

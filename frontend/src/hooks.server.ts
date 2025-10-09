@@ -1,9 +1,9 @@
-import { authenticateToken } from "$lib/server/auth";
+// src/hooks.server.ts
 import { redirect, type Handle } from "@sveltejs/kit";
+import { httpRequests, httpDuration } from "$lib/server/metrics";
 
 export const handle: Handle = async ({ event, resolve }) => {
-  console.log("handle");
-  // Stage 1
+  // --- Your existing Stage 1 (auth) logic ---
   let userString  = event.cookies.get("User");
   const user = userString ? JSON.parse(userString) : null;
   if (user) {
@@ -15,7 +15,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       lastName: user.lastName,
       originCountry: user.country,
       passportNumber: user.passport,
-      role: user.role.replace("ROLE_", "") as "USER" | "ADMIN" | "EMPLOYEE",
+      role: (user.role.replace("ROLE_", "") as "USER" | "ADMIN" | "EMPLOYEE"),
       age: user.age.toString(),
       percentage: "100",
       entryDate: user.createdAt,
@@ -39,9 +39,16 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
   }
 
-  // Stage 2
+  // --- Metrics timing ---
+  const route = event.route?.id ?? 'unmatched';
+  const method = event.request.method;
+  const endTimer = httpDuration.startTimer({ route, method });
+
   const response = await resolve(event);
 
-  //Stage 3
+  const status = response.status.toString();
+  httpRequests.inc({ route, method, status }, 1);
+  endTimer({ route, method, status });
+
   return response;
 };
