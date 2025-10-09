@@ -9,6 +9,7 @@ resources:
 - ingress.yml
 - podmonitoring-backend.yaml
 - podmonitoring-frontend.yaml
+
 images:
 - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
   newName: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
@@ -40,10 +41,11 @@ secretGenerator:
   # Backend Service: attach BackendConfig
   # JSON6902 patch to add env var PUBLIC_BACKEND_URL to frontend Deployment
   
-patchesStrategicMerge:
-  - pull-always.yaml
-
 patches:
+- path: patch-loadtest-env.yaml
+- path: patch-locust-lb.yaml
+- path: patch-locust-metrics-port.yaml
+- path: pull-always.yaml
 - path: backend-env.patch.yml
   target:
     group: apps

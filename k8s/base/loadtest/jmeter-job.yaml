@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: jmeter-             # no fixed name; each run is unique
+  labels:
+    app: jmeter-run                 # keep label for Service/PodMonitoring
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: jmeter-run
+        jmeter-metrics: "true"
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: init-jars
+        image: curlimages/curl:8.7.1
+        args: ["sh","-lc","set -e; mkdir -p /ext; curl -L -o /ext/jmeter-prometheus-listener.jar https://github.com/kolesnikovm/jmeter-prometheus-listener/releases/download/2.6.3/jmeter-prometheus-listener-2.6.3.jar; ls -l /ext"]
+        resources:
+          requests: { cpu: "500m", memory: "1Gi", ephemeral-storage: "1Gi" }
+          limits:   {              memory: "1Gi", ephemeral-storage: "1Gi" }
+        volumeMounts:
+        - name: jmeter-ext
+          mountPath: /ext
+      containers:
+      - name: jmeter
+        image: alpine/jmeter:5.6.3
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: TARGET_BASE_URL
+          value: "http://backend:8080/nexus"      # overlay patch will set per env
+        - name: JMETER_HOME
+          value: "/opt/apache-jmeter-5.6.3"
+        command: ["sh","-lc"]
+        args:
+        - >
+          cp /ext/*.jar $JMETER_HOME/lib/ext/ &&
+          $JMETER_HOME/bin/jmeter -n -t /testplan/test.jmx
+          -JtargetBaseUrl=${TARGET_BASE_URL}
+          -Jthreads=50 -Jrampup=10 -Jduration=300;
+          sleep 60
+        ports:
+        - name: jmx-metrics
+          containerPort: 9270
+        resources:
+          requests: { cpu: "500m", memory: "1Gi", ephemeral-storage: "1Gi" }
+          limits:   { cpu: "2",    memory: "2Gi",  ephemeral-storage: "1Gi" }
+        volumeMounts:
+        - name: testplan
+          mountPath: /testplan
+        - name: jmeter-ext
+          mountPath: /ext
+      volumes:
+      - name: testplan
+        configMap:
+          name: jmeter-testplan
+      - name: jmeter-ext
+        emptyDir: {}

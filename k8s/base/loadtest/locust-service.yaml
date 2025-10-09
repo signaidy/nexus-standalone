@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: locust-master
+  labels:
+    app: locust-master
+spec:
+  type: ClusterIP
+  selector:
+    app: locust-master
+  ports:
+  - name: web
+    port: 8089
+    targetPort: web
+  - name: comm
+    port: 5557
+    targetPort: comm
+  - name: comm2
+    port: 5558
+    targetPort: comm2

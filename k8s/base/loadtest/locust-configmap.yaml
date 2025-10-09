@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: locustfile
+data:
+  locustfile.py: |
+    import os
+    from locust import HttpUser, task, between
+
+    BASE = os.getenv("LOCUST_HOST", "http://localhost:8080/nexus")
+
+    class ApiUser(HttpUser):
+      wait_time = between(0.5, 2.0)
+
+      @task(3)
+      def about(self):
+        self.client.get(f"{BASE}/aboutus/1", name="/aboutus/1")
+
+      @task(1)
+      def health(self):
+        self.client.get(f"{BASE}/healthz", name="/healthz")
