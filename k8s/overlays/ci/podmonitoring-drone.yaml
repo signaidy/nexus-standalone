@@ -9,12 +9,12 @@ spec:
       app.kubernetes.io/name: drone
       app.kubernetes.io/component: server
   endpoints:
-    - port: http
-      path: /metrics
-      interval: 30s
-      authorization:
-        type: Bearer
-        credentials:
-          secret:
-            name: drone-metrics-token
-            key: token
+  - port: 80
+    path: /metrics
+    interval: 30s
+    authorization:
+      type: Bearer
+      credentials:
+        secret:
+          name: drone-metrics-token
+          key: token
