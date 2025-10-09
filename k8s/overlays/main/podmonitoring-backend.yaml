@@ -11,7 +11,3 @@ spec:
     - port: http
       path: /nexus/actuator/prometheus
       interval: 30s
-  targetLabels:
-    fromPod:
-      - name: app
-      - name: version
