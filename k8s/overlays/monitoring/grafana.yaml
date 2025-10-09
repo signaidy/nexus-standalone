@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana
+  namespace: monitoring
+  annotations:
+    iam.gke.io/gcp-service-account: grafana-gcm@spectra-kube.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  gcm-promql.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Google Cloud Monitoring
+        type: stackdriver
+        access: proxy
+        isDefault: true
+        jsonData:
+          authenticationType: "gce"        # Use Workload Identity
+          defaultProject: "spectra-kube"
+          # IMPORTANT: Enable Prometheus/PromQL editor in Grafana's GCM ds
+          # (Grafana 9/10+ supports PromQL against GCM)
+          # You’ll see two tabs in the query editor; pick PromQL.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-providers
+  namespace: monitoring
+data:
+  providers.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'nexus-boards'
+        orgId: 1
+        folder: ''
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  nexus-8-panels.json: |
+    {
+      "title": "Nexus – Pipeline y Aplicación",
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Pipeline – Builds/min (Drone)",
+          "gridPos": {"x":0, "y":0, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "increase(drone_build_count[5m]) / 300",
+              "legendFormat": "ci (builds/s)",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Pipeline – Pending builds",
+          "gridPos": {"x":12, "y":0, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "drone_pending_builds",
+              "legendFormat": "ci",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Pipeline – Pending jobs",
+          "gridPos": {"x":0, "y":8, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "drone_pending_jobs",
+              "legendFormat": "ci",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Pipeline – Repos registrados",
+          "gridPos": {"x":12, "y":8, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "drone_repo_count",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "type": "timeseries",
+          "title": "App – RPS (frontend+backend) por namespace",
+          "gridPos": {"x":0, "y":16, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "sum by (namespace) ( rate(nexus_front_http_requests_total{namespace=~\"dev|uat|main\"}[5m]) ) + sum by (namespace) ( rate(http_server_requests_seconds_count{namespace=~\"dev|uat|main\"}[5m]) )",
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "App – p95 latency (s) por namespace",
+          "gridPos": {"x":12, "y":16, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.95, sum by (le, namespace) ( rate(nexus_front_http_request_duration_seconds_bucket{namespace=~\"dev|uat|main\"}[5m]) )) + histogram_quantile(0.95, sum by (le, namespace) ( rate(http_server_requests_seconds_bucket{namespace=~\"dev|uat|main\"}[5m]) ))",
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "App – Error rate (5xx RPS) por namespace",
+          "gridPos": {"x":0, "y":24, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "sum by (namespace) ( rate(nexus_front_http_requests_total{namespace=~\"dev|uat|main\",status=~\"5..\"}[5m]) ) + sum by (namespace) ( rate(http_server_requests_seconds_count{namespace=~\"dev|uat|main\",status=~\"5..\"}[5m]) )",
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "App – Apdex (~OK/total) por namespace",
+          "gridPos": {"x":12, "y":24, "w":12, "h":8},
+          "targets": [
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "(sum by (namespace) ( rate(nexus_front_http_requests_total{namespace=~\"dev|uat|main\",status!~\"5..\"}[5m]) ) / sum by (namespace) ( rate(nexus_front_http_requests_total{namespace=~\"dev|uat|main\"}[5m]) ))",
+              "legendFormat": "front {{namespace}}",
+              "refId": "A"
+            },
+            {
+              "datasource": {"type":"stackdriver","uid":"grafana-stackdriver-datasource"},
+              "editorMode": "code",
+              "expr": "(sum by (namespace) ( rate(http_server_requests_seconds_count{namespace=~\"dev|uat|main\",status!~\"5..\"}[5m]) ) / sum by (namespace) ( rate(http_server_requests_seconds_count{namespace=~\"dev|uat|main\"}[5m]) ))",
+              "legendFormat": "back {{namespace}}",
+              "refId": "B"
+            }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: grafana } }
+  template:
+    metadata:
+      labels: { app: grafana }
+    spec:
+      serviceAccountName: grafana
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.5
+          ports: [{ name: http, containerPort: 3000 }]
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"          # flip to false later if you need auth
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "true"
+            - name: GF_USERS_DEFAULT_THEME
+              value: "light"
+          volumeMounts:
+            - name: ds
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: providers
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: ds
+          configMap: { name: grafana-datasources }
+        - name: providers
+          configMap: { name: grafana-dashboard-providers }
+        - name: dashboards
+          configMap: { name: nexus-dashboard }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  type: ClusterIP
+  selector: { app: grafana }
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
