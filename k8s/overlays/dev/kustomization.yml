@@ -7,6 +7,8 @@ resources:
 - backend-backendconfig.yml
 - frontend-backendconfig.yml
 - ingress.yml
+- podmonitoring-backend.yaml
+- podmonitoring-frontend.yaml
 images:
 - name: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
   newName: us-central1-docker.pkg.dev/spectra-kube/nexus/nexus-backend
