@@ -41,9 +41,10 @@ secretGenerator:
   # JSON6902 patch to add env var PUBLIC_BACKEND_URL to frontend Deployment
   
 patchesStrategicMerge:
-  - patch-loadtest-env.yaml
-  - patch-locust-lb.yaml
-  - patch-locust-metrics-port.yaml
+  - pull-always.yaml
+  - patch-loadtest-env.yaml          # sets LOCUST_HOST / TARGET_BASE_URL per env
+  - patch-locust-lb.yaml             # Service -> LoadBalancer
+  - patch-locust-metrics-port.yaml   # adds port 9646 on Service
 
 patches:
 - path: backend-env.patch.yml
