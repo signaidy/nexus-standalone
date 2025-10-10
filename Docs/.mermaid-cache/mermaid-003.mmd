@@ -1,0 +1,19 @@
+sequenceDiagram
+  autonumber
+  participant Dev as Dev
+  participant GH as GitHub (PR)
+  participant D as Drone Server/Runner (ci)
+  participant AR as Artifact Registry
+  participant K8s as GKE (dev/uat/main)
+  participant Sonar as SonarQube VM
+
+  Dev->>GH: Push / PR
+  GH-->>D: Webhook
+  D->>Sonar: Análisis (quality gate)
+  alt Gate OK
+    D->>AR: Build & Push imágenes
+    D->>K8s: kubectl apply -k overlays/<env>
+    K8s-->>D: Rollout OK
+  else Gate FAIL
+    D-->>Dev: Falla de pipeline
+  end

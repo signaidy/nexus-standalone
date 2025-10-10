@@ -1,0 +1,13 @@
+graph TB
+  subgraph NS_ENV ["Namespace (ej. dev)"]
+    direction TB
+    FE[Deployment: frontend<br/>Service: ClusterIP<br/>HEALTH: /nexus/healthz]
+    BE[Deployment: backend<br/>Service: ClusterIP<br/>8080]
+    ORA[(Service: oracle.db.svc)]
+
+    FE -->|HTTP in-cluster| BE
+    BE -->|JDBC| ORA
+  end
+
+  IGW[Ingress / NEG / LB]
+  IGW -->|Host/Path -> FE| FE

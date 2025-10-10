@@ -1,0 +1,9 @@
+graph LR
+  User[Usuario Web] --> FE[Frontend Svelte]
+  FE --> AG[Agencia API Aggregator/BFF]
+  AG --> HO[Hotelería API]
+  AG --> AE[Aerolínea API]
+  AG --> REDIS[(Redis Cache)]
+  HO --> DBH[(Oracle Schema: HOTEL)]
+  AE --> DBA[(Oracle Schema: AIRLINE)]
+  AG --> DBAg[(Oracle Schema: AGENCY)]

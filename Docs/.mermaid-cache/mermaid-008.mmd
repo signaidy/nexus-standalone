@@ -1,0 +1,8 @@
+flowchart TD
+  A[Sonar Analysis terminado] --> B{Quality Gate}
+  B -->|FAIL| C[Cancelar deploy + Notificar]
+  B -->|OK| D[Publicar imágenes]
+  D --> E{¿Autodeploy habilitado para rama?}
+  E -->|No| F[Marcar build como listo para promoción]
+  E -->|Sí| G[Aplicar overlay del entorno]
+  G --> H[Rollout + Smoke]

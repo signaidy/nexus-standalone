@@ -1,0 +1,12 @@
+graph TB
+  subgraph Agencia - Spring Boot
+    C[Controllers / REST] --> S[Services]
+    S --> RZ[Resilience4j: CB/Retry/Timeout/Bulkhead]
+    S --> POL[Provider Policy quotas & timeouts]
+    S --> ACL[Anti-Corruption Layer Mappers/DTOv]
+    S --> ADP[Adapters -> Proveedores REST/gRPC]
+    S --> L1[L1 Cache Caffeine opcional]
+    L1 --> REDIS[(Redis L2 Cache)]
+    S --> P[JPA/Repo]
+    P --> DBAg[(Oracle: AGENCY)]
+  end

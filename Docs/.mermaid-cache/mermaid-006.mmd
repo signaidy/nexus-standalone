@@ -1,0 +1,10 @@
+flowchart LR
+  A[Build en dev] --> B[Gate OK]
+  B --> C[Retag :dev al último timestamp]
+  C --> D[Tests funcionales en dev]
+  D --> E{Promover a uat?}
+  E -->|Sí| F[Mover alias :uat al mismo tag]
+  F --> G[Deploy a uat + pruebas UAT]
+  G --> H{Aprobación de release?}
+  H -->|Sí| I[Retag :main al mismo tag]
+  I --> J[Deploy a main]
