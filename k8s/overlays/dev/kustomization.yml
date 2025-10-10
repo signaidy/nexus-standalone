@@ -40,11 +40,14 @@ secretGenerator:
   # Frontend Service: attach BackendConfig
   # Backend Service: attach BackendConfig
   # JSON6902 patch to add env var PUBLIC_BACKEND_URL to frontend Deployment
+
+patchesStrategicMerge:
+  - patch-loadtest-env.yaml
+  - patch-locust-lb.yaml
+  - patch-locust-metrics-port.yaml
+
   
 patches:
-- path: patch-loadtest-env.yaml
-- path: patch-locust-lb.yaml
-- path: patch-locust-metrics-port.yaml
 - path: pull-always.yaml
 - path: backend-env.patch.yml
   target:
