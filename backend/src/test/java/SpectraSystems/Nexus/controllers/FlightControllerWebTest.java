@@ -5,18 +5,24 @@ import SpectraSystems.Nexus.services.FlightService;
 import SpectraSystems.Nexus.repositories.FlightRepository;
 import SpectraSystems.Nexus.repositories.ReservationRepository;
 import SpectraSystems.Nexus.services.UserService;
+import SpectraSystems.Nexus.testsupport.TestSecurityConfig;
 
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Answers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,31 +31,26 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
-import org.mockito.Answers;
-import org.springframework.security.core.userdetails.UserDetailsService;
-
-import SpectraSystems.Nexus.models.externalFlight;
-
-
-@SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
+// IMPORTANT: limit to the controller(s) under test
+@WebMvcTest(controllers = FlightController.class)
+@AutoConfigureMockMvc(addFilters = false) // no security filters
+@Import(TestSecurityConfig.class)         // minimal permit-all chain to satisfy security config
 @ActiveProfiles("test")
 class FlightControllerWebTest {
 
-   @Autowired MockMvc mvc;
+    @Autowired MockMvc mvc;
+    
+    @MockBean
+    private SpectraSystems.Nexus.services.JwtService jwtService;
 
-   @MockBean FlightService flightService;
-   @MockBean FlightRepository flightRepository;
-   @MockBean ReservationRepository reservationRepository;
-   @MockBean(answer = Answers.RETURNS_DEEP_STUBS)
-   UserService userService;
-   @MockBean UserDetailsService userDetailsService;
-   @MockBean org.springframework.web.client.RestTemplate restTemplate;
-
-    // email side effects are mocked
+    // Mock every collaborator the controller touches
+    @MockBean FlightService flightService;
+    @MockBean FlightRepository flightRepository;
+    @MockBean ReservationRepository reservationRepository;
+    @MockBean(answer = Answers.RETURNS_DEEP_STUBS) UserService userService;
+    @MockBean UserDetailsService userDetailsService;
+    @MockBean org.springframework.web.client.RestTemplate restTemplate;
     @MockBean JavaMailSender emailSender;
 
     // ---------- simple GETs ----------
