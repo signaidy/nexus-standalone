@@ -1,34 +1,42 @@
 pipeline {
-  agent {
-    kubernetes {
-      label 'kaniko-kubectl'
-      defaultContainer 'kaniko'
-      yaml """
-apiVersion: v1
-kind: Pod
-metadata:
-  labels:
-    run: jenkins-kaniko
-spec:
-  serviceAccountName: jenkins
-  containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    args: ["cat"]
-    tty: true
-    volumeMounts:
-    - name: kaniko-cache
-      mountPath: /kaniko/.cache
-  - name: kubectl
-    image: bitnami/kubectl:1.29
-    args: ["sleep","99d"]
-    tty: true
-  volumes:
-  - name: kaniko-cache
-    emptyDir: {}
-"""
+    agent {
+        kubernetes {
+            label 'kaniko-kubectl'
+            // do NOT set "defaultContainer" to something that needs 'cat'
+            yaml """
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                labels:
+                    run: jenkins-kaniko
+                spec:
+                serviceAccountName: jenkins
+                containers:
+                - name: kaniko
+                    image: gcr.io/kaniko-project/executor:latest
+                    tty: true
+                    resources:
+                    requests:
+                        cpu: "250m"
+                        memory: "512Mi"
+                    limits:
+                        cpu: "500m"
+                        memory: "1Gi"
+                - name: kubectl
+                    image: bitnami/kubectl:latest
+                    command: ["sleep"]
+                    args: ["99d"]
+                    tty: true
+                    resources:
+                    requests:
+                        cpu: "50m"
+                        memory: "128Mi"
+                    limits:
+                        cpu: "250m"
+                        memory: "256Mi"
+                """
+        }
     }
-  }
 
   environment {
     PROJECT = 'spectra-kube'
