@@ -11,28 +11,30 @@ metadata:
 spec:
   serviceAccountName: jenkins
   containers:
-    - name: kaniko
-      image: gcr.io/kaniko-project/executor:latest
-      tty: true
-      resources:
-        requests:
-          cpu: "250m"
-          memory: "512Mi"
-        limits:
-          cpu: "500m"
-          memory: "1Gi"
-    - name: kubectl
-      image: registry.k8s.io/kubectl:v1.29.0
-      command: ["sleep"]
-      args: ["99d"]
-      tty: true
-      resources:
-        requests:
-          cpu: "50m"
-          memory: "128Mi"
-        limits:
-          cpu: "250m"
-          memory: "256Mi"
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command: ["sleep"]
+    args: ["99d"]
+    tty: true
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+  - name: kubectl
+    image: bitnami/kubectl:1.29.7
+    command: ["sleep"]
+    args: ["99d"]
+    tty: true
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+      limits:
+        cpu: "250m"
+        memory: "256Mi"
 """
     }
   }
@@ -42,7 +44,8 @@ spec:
     REGION  = 'us-central1'
     REPO    = 'nexus'
     STAMP   = "${new Date().format('yyyyMMdd-HHmmss', TimeZone.getTimeZone('UTC'))}"
-    NS = "${BRANCH_NAME == 'main' ? 'main' : (BRANCH_NAME == 'uat' ? 'uat' : 'dev')}"
+    // fallback to dev if BRANCH_NAME isn't available yet
+    NS      = "${(BRANCH_NAME?:'dev') == 'main' ? 'main' : ((BRANCH_NAME?:'dev') == 'uat' ? 'uat' : 'dev')}"
     BACK_IMG  = "${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-backend:manual-${STAMP}"
     FRONT_IMG = "${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-frontend:manual-${STAMP}"
   }
