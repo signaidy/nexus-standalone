@@ -1,76 +1,76 @@
 pipeline {
   agent {
     kubernetes {
-        label 'kaniko-kubectl'
-        yaml """
-    apiVersion: v1
-    kind: Pod
-    metadata:
-    labels:
-        run: jenkins-kaniko
-    spec:
-    serviceAccountName: jenkins
-    containers:
-    - name: kaniko
-        image: gcr.io/kaniko-project/executor:v1.23.2-debug
-        command: ["sleep"]
-        args: ["99d"]
-        tty: true
-        resources:
-        requests:
-            cpu: "1000m"
-            memory: "2Gi"
-            ephemeral-storage: "8Gi"
-        limits:
-            cpu: "2000m"
-            memory: "4Gi"
-            ephemeral-storage: "9Gi"
-    - name: node
-        image: node:20-bullseye
-        command: ["sleep"]
-        args: ["99d"]
-        tty: true
-        env:
-        - name: npm_config_fund
+      label 'kaniko-kubectl'
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: jenkins-kaniko
+spec:
+  serviceAccountName: jenkins
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    command: ["sleep"]
+    args: ["99d"]
+    tty: true
+    resources:
+      requests:
+        cpu: "1000m"
+        memory: "2Gi"
+        ephemeral-storage: "8Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+        ephemeral-storage: "9Gi"
+  - name: node
+    image: node:20-bullseye
+    command: ["sleep"]
+    args: ["99d"]
+    tty: true
+    env:
+      - name: npm_config_fund
         value: "false"
-        - name: npm_config_audit
+      - name: npm_config_audit
         value: "false"
-        - name: npm_config_progress
+      - name: npm_config_progress
         value: "false"
-        - name: npm_config_fetch_retries
+      - name: npm_config_fetch_retries
         value: "8"
-        - name: npm_config_fetch_retry_mintimeout
+      - name: npm_config_fetch_retry_mintimeout
         value: "30000"
-        - name: npm_config_fetch_retry_maxtimeout
+      - name: npm_config_fetch_retry_maxtimeout
         value: "180000"
-        - name: npm_config_network_timeout
+      - name: npm_config_network_timeout
         value: "600000"
-        - name: NODE_OPTIONS
+      - name: NODE_OPTIONS
         value: "--max-old-space-size=1536"
-        resources:
-        requests:
-            cpu: "1000m"
-            memory: "2Gi"
-            ephemeral-storage: "1Gi"
-        limits:
-            cpu: "2000m"
-            memory: "4Gi"
-            ephemeral-storage: "2Gi"
-    - name: kubectl
-        image: alpine/k8s:1.30.3
-        command: ["sleep"]
-        args: ["99d"]
-        tty: true
-        resources:
-        requests:
-            cpu: "200m"
-            memory: "256Mi"
-            ephemeral-storage: "128Mi"
-        limits:
-            cpu: "500m"
-            memory: "512Mi"
-            ephemeral-storage: "256Mi"
-    """
+    resources:
+      requests:
+        cpu: "1000m"
+        memory: "2Gi"
+        ephemeral-storage: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+        ephemeral-storage: "2Gi"
+  - name: kubectl
+    image: alpine/k8s:1.30.3
+    command: ["sleep"]
+    args: ["99d"]
+    tty: true
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+        ephemeral-storage: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+        ephemeral-storage: "256Mi"
+"""
     }
   }
 
@@ -79,7 +79,7 @@ pipeline {
     REGION  = 'us-central1'
     REPO    = 'nexus'
     STAMP   = "${new Date().format('yyyyMMdd-HHmmss', TimeZone.getTimeZone('UTC'))}"
-    NS      = "${(BRANCH_NAME?:'dev') == 'main' ? 'main' : ((BRANCH_NAME?:'dev') == 'uat' ? 'uat' : 'dev')}"
+    NS      = "${(BRANCH_NAME ?: 'dev') == 'main' ? 'main' : ((BRANCH_NAME ?: 'dev') == 'uat' ? 'uat' : 'dev')}"
     BACK_IMG  = "${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-backend:${GIT_COMMIT}"
     FRONT_IMG = "${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-frontend:${GIT_COMMIT}"
   }
@@ -88,7 +88,9 @@ pipeline {
   options { timestamps() }
 
   stages {
-    stage('Checkout') { steps { checkout scm } }
+    stage('Checkout') {
+      steps { checkout scm }
+    }
 
     stage('Build backend (Kaniko)') {
       when { anyOf { branch 'dev'; branch 'uat'; branch 'main' } }
@@ -96,16 +98,16 @@ pipeline {
         container('kaniko') {
           sh '''
             /kaniko/executor \
-                --verbosity=info \
-                --context=dir://${WORKSPACE}/backend \
-                --dockerfile=${WORKSPACE}/backend/Dockerfile \
-                --destination=${BACK_IMG} \
-                --cache=true \
-                --cache-ttl=168h \
-                --snapshot-mode=time \
-                --single-snapshot \
-                --use-new-run \
-                --build-arg=COMMIT_SHA=${GIT_COMMIT}
+              --verbosity=info \
+              --context=dir://${WORKSPACE}/backend \
+              --dockerfile=${WORKSPACE}/backend/Dockerfile \
+              --destination=${BACK_IMG} \
+              --cache=true \
+              --cache-ttl=168h \
+              --snapshot-mode=time \
+              --single-snapshot \
+              --use-new-run \
+              --build-arg=COMMIT_SHA=${GIT_COMMIT}
           '''
         }
       }
@@ -130,24 +132,24 @@ pipeline {
     }
 
     stage('Build frontend (Kaniko)') {
-        when { anyOf { branch 'dev'; branch 'uat'; branch 'main' } }
-        steps {
-            container('kaniko') {
-            sh '''
-                /kaniko/executor \
-                --verbosity=debug \
-                --context=dir://${WORKSPACE}/frontend \
-                --dockerfile=${WORKSPACE}/frontend/Dockerfile \
-                --destination=${FRONT_IMG} \
-                --cache=true \
-                --cache-ttl=168h \
-                --snapshot-mode=time \
-                --single-snapshot \
-                --use-new-run \
-                --build-arg=COMMIT_SHA=${GIT_COMMIT}
-            '''
-            }
+      when { anyOf { branch 'dev'; branch 'uat'; branch 'main' } }
+      steps {
+        container('kaniko') {
+          sh '''
+            /kaniko/executor \
+              --verbosity=debug \
+              --context=dir://${WORKSPACE}/frontend \
+              --dockerfile=${WORKSPACE}/frontend/Dockerfile \
+              --destination=${FRONT_IMG} \
+              --cache=true \
+              --cache-ttl=168h \
+              --snapshot-mode=time \
+              --single-snapshot \
+              --use-new-run \
+              --build-arg=COMMIT_SHA=${GIT_COMMIT}
+          '''
         }
+      }
     }
 
     stage('Pin images in Kustomize') {
@@ -175,7 +177,7 @@ pipeline {
             cd k8s/overlays/${NS}
             ./kustomize build . | kubectl apply -f -
             kubectl -n ${NS} rollout status deploy/frontend --timeout=600s
-            kubectl -n ${NS} rollout status deploy/backend  --timeout=600s
+            kubectl -n ${NS} rollout status deploy/backend --timeout=600s
           '''
         }
       }
