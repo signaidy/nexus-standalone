@@ -1,0 +1,22 @@
+sequenceDiagram
+  autonumber
+  participant Dev as Developer
+  participant GH as GitHub (Repo/PR)
+  participant CI as Drone CI (Server/Runner)
+  participant Sonar as SonarQube VM
+  participant REG as Artifact Registry
+  participant GKE as GKE Autopilot (dev/uat/main)
+
+  Dev->>GH: Push / Pull Request
+  GH-->>CI: Webhook de evento (push/PR)
+  CI->>CI: Checkout + resolve rama/entorno
+  CI->>CI: Build frontend + backend (Kaniko o Cloud Build)
+  CI->>Sonar: Análisis + espera de Quality Gate
+  alt Quality Gate OK
+    CI->>REG: Push imágenes etiquetadas (timestamp)
+    CI->>GKE: Despliegue (kustomize apply)
+    GKE-->>CI: Rollout OK (backend, frontend)
+    CI-->>Dev: Notificaciones (éxito)
+  else Quality Gate FAIL
+    CI-->>Dev: Notificaciones (falla)
+  end

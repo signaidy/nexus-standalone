@@ -1,0 +1,7 @@
+graph TB
+  subgraph Aerolínea Spring Boot
+    CA[Controllers] --> SA[Services]
+    SA --> VA[Tarifación / Rules]
+    SA --> PA[Persistence]
+    PA --> DBA[(Oracle Schema: AIRLINE)]
+  end

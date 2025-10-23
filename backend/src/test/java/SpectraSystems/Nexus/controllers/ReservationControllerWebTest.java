@@ -3,20 +3,21 @@ package SpectraSystems.Nexus.controllers;
 import SpectraSystems.Nexus.models.Reservation;
 import SpectraSystems.Nexus.services.ReservationService;
 import SpectraSystems.Nexus.services.UserService;
+import SpectraSystems.Nexus.repositories.ProviderRepository;
+import SpectraSystems.Nexus.testsupport.TestSecurityConfig;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import SpectraSystems.Nexus.repositories.ProviderRepository;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,25 +28,22 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@WebMvcTest(controllers = ReservationController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(TestSecurityConfig.class)
 @ActiveProfiles("test")
 class ReservationControllerWebTest {
 
     @Autowired MockMvc mvc;
+    
+    @MockBean
+    private SpectraSystems.Nexus.services.JwtService jwtService;
 
     @MockBean ReservationService reservationService;
     @MockBean ProviderRepository providerRepository;
-
-    // Deep-stub to satisfy SecurityConfig (e.g., userService.userDetailsService())
-    @MockBean(answer = Answers.RETURNS_DEEP_STUBS)
-    UserService userService;
+    @MockBean(answer = Answers.RETURNS_DEEP_STUBS) UserService userService;
     @MockBean UserDetailsService userDetailsService;
-
-    // If any bean needs a RestTemplate during context init, this keeps things simple.
     @MockBean org.springframework.web.client.RestTemplate restTemplate;
-
-    // Email sender is referenced privately; mock it to avoid real mail.
     @MockBean JavaMailSender emailSender;
 
     // ---------- GET collections ----------
@@ -187,7 +185,7 @@ class ReservationControllerWebTest {
     void createReservation_alwaysBadRequest_now() throws Exception {
         mvc.perform(post("/reservations")
                 .param("providerId", "1")
-                .contentType(MediaType.APPLICATION_JSON)
+                .contentType(APPLICATION_JSON)
                 .content("{}"))
            .andExpect(status().isBadRequest());
     }

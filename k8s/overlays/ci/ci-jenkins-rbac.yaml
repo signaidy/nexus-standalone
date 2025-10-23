@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: ci
+  annotations:
+    iam.gke.io/gcp-service-account: jenkins-ci@spectra-kube.iam.gserviceaccount.com
+---
+# Allow Jenkins to run agent pods in ci
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-ci-agent
+  namespace: ci
+rules:
+  - apiGroups: ["", "apps", "batch"]
+    resources: ["pods","pods/log","pods/exec","pods/attach","secrets","configmaps"]
+    verbs: ["create","get","list","watch","delete","patch","update"]
+  - apiGroups: ["", "apps"]
+    resources: ["deployments","replicasets"]
+    verbs: ["get","list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-ci-agent
+  namespace: ci
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: ci
+roleRef:
+  kind: Role
+  name: jenkins-ci-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+# Deploy rights in dev/uat/main
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+  namespace: dev
+rules:
+  - apiGroups: ["", "apps", "batch", "extensions", "autoscaling", "networking.k8s.io"]
+    resources: ["*"]
+    verbs: ["get","list","watch","create","update","patch","delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deployer
+  namespace: dev
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: ci
+roleRef:
+  kind: Role
+  name: jenkins-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+# copy for uat
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+  namespace: uat
+rules:
+  - apiGroups: ["", "apps", "batch", "extensions", "autoscaling", "networking.k8s.io"]
+    resources: ["*"]
+    verbs: ["get","list","watch","create","update","patch","delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deployer
+  namespace: uat
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: ci
+roleRef:
+  kind: Role
+  name: jenkins-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+# copy for main
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+  namespace: main
+rules:
+  - apiGroups: ["", "apps", "batch", "extensions", "autoscaling", "networking.k8s.io"]
+    resources: ["*"]
+    verbs: ["get","list","watch","create","update","patch","delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deployer
+  namespace: main
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: ci
+roleRef:
+  kind: Role
+  name: jenkins-deployer
+  apiGroup: rbac.authorization.k8s.io

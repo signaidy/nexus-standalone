@@ -1,0 +1,35 @@
+graph LR
+  subgraph Edge
+    BFF[API Gateway/BFF]
+  end
+  subgraph Core
+    AGG[Agency Aggregator]
+    BO[Booking Orchestrator]
+    AUTH[Auth]
+    OBS[Observability]
+  end
+  subgraph Providers
+    CHX[HotelX Connector]
+    CHY[HotelY Connector]
+    CAA[AirA Connector]
+    CAB[AirB Connector]
+  end
+  subgraph Data
+    REDIS[(Inventory Cache)]
+    ORA[(Oracle DB)]
+    MQ[(Event Bus / Outbox)]
+  end
+
+  BFF --> AGG
+  AGG --> REDIS
+  AGG --> CHX
+  AGG --> CHY
+  AGG --> CAA
+  AGG --> CAB
+  BFF --> BO
+  BO --> CAA
+  BO --> CHX
+  BO --> MQ
+  AGG --> ORA
+  BO --> ORA
+  BFF --> AUTH
