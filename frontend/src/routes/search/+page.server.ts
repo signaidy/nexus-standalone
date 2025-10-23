@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { env } from '$env/dynamic/public';
 
 export function load({ locals, url }) {
