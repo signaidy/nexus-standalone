@@ -1,0 +1,15 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: jenkins
+  namespace: ci
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: "jenkins-controller"
+      app.kubernetes.io/instance: "jenkins"
+  endpoints:
+  - port: http        # matches the Service/Pod port name for 8080
+    path: /prometheus/
+    interval: 30s
+    scheme: http
