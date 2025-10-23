@@ -1,68 +1,57 @@
 pipeline {
-    agent {
-        kubernetes {
-            label 'kaniko-kubectl'
-            yaml """
-        apiVersion: v1
-        kind: Pod
-        metadata:
-        labels:
-            run: jenkins-kaniko
-        spec:
-        serviceAccountName: jenkins
-        containers:
-        - name: kaniko
-            image: gcr.io/kaniko-project/executor:latest
-            tty: true
-            resources:
-            requests:
-                cpu: "250m"
-                memory: "512Mi"
-            limits:
-                cpu: "500m"
-                memory: "1Gi"
-        - name: kubectl
-            image: registry.k8s.io/kubectl:v1.29.0
-            command: ["sleep"]
-            args: ["99d"]
-            tty: true
-            resources:
-            requests:
-                cpu: "50m"
-                memory: "128Mi"
-            limits:
-                cpu: "250m"
-                memory: "256Mi"
-        """
-        }
+  agent {
+    kubernetes {
+      label 'kaniko-kubectl'
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: jenkins-kaniko
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      tty: true
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "512Mi"
+        limits:
+          cpu: "500m"
+          memory: "1Gi"
+    - name: kubectl
+      image: registry.k8s.io/kubectl:v1.29.0
+      command: ["sleep"]
+      args: ["99d"]
+      tty: true
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "128Mi"
+        limits:
+          cpu: "250m"
+          memory: "256Mi"
+"""
     }
+  }
 
   environment {
     PROJECT = 'spectra-kube'
     REGION  = 'us-central1'
     REPO    = 'nexus'
     STAMP   = "${new Date().format('yyyyMMdd-HHmmss', TimeZone.getTimeZone('UTC'))}"
-
-    // Map branch -> namespace
-    // Multibranch sets BRANCH_NAME automatically (e.g., dev/uat/main or PR-xxx)
     NS = "${BRANCH_NAME == 'main' ? 'main' : (BRANCH_NAME == 'uat' ? 'uat' : 'dev')}"
-
     BACK_IMG  = "${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-backend:manual-${STAMP}"
     FRONT_IMG = "${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-frontend:manual-${STAMP}"
   }
 
-  triggers {
-    // Use polling since Jenkins has no public webhook (free)
-    // Disable if you later enable GitHub webhooks
-    pollSCM('H/2 * * * *')
-  }
-
+  triggers { pollSCM('H/2 * * * *') }
   options { timestamps() }
 
   stages {
-    stage('Checkout') {
-      steps { checkout scm }
-    }
+    stage('Checkout') { steps { checkout scm } }
 
     stage('Build backend (Kaniko)') {
       when { anyOf { branch 'dev'; branch 'uat'; branch 'main' } }
@@ -103,16 +92,9 @@ pipeline {
           sh '''
             set -eux
             cd k8s/overlays/${NS}
-
-            # Fetch kustomize (portable install)
             curl -sL https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash
-
-            ./kustomize edit set image \
-              ${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-backend=${BACK_IMG}
-            ./kustomize edit set image \
-              ${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-frontend=${FRONT_IMG}
-
-            echo "Rendered images:"
+            ./kustomize edit set image ${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-backend=${BACK_IMG}
+            ./kustomize edit set image ${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/nexus-frontend=${FRONT_IMG}
             ./kustomize build . | grep 'image:' || true
           '''
         }
