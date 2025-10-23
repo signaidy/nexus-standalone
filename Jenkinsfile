@@ -1,31 +1,31 @@
 pipeline {
   agent {
     kubernetes {
-      label 'kaniko-kubectl'
-      yaml """
+        label 'kaniko-kubectl'
+        yaml """
 apiVersion: v1
 kind: Pod
 metadata:
-  labels:
+labels:
     run: jenkins-kaniko
 spec:
-  serviceAccountName: jenkins
-  containers:
-  - name: kaniko
+serviceAccountName: jenkins
+containers:
+- name: kaniko
     image: gcr.io/kaniko-project/executor:v1.23.2-debug
     command: ["sleep"]
     args: ["99d"]
     tty: true
     resources:
-      requests:
+    requests:
         cpu: "1000m"
         memory: "2Gi"
         ephemeral-storage: "8Gi"
-      limits:
+    limits:
         cpu: "2000m"
         memory: "4Gi"
         ephemeral-storage: "9Gi"
-  - name: node
+- name: node
     image: node:20-bullseye
     command: ["sleep"]
     args: ["99d"]
@@ -40,40 +40,31 @@ spec:
     - { name: npm_config_network_timeout, value: "600000" }
     - { name: NODE_OPTIONS, value: "--max-old-space-size=1536" }
     resources:
-      requests:
+    requests:
         cpu: "1000m"
         memory: "2Gi"
         ephemeral-storage: "1Gi"
-      limits:
+    limits:
         cpu: "2000m"
         memory: "4Gi"
         ephemeral-storage: "2Gi"
-  - name: kubectl
-    image: bitnami/kubectl:1.29.7
+- name: kubectl
+    image: alpine/k8s:1.30.3
     command: ["sleep"]
     args: ["99d"]
     tty: true
     resources:
-      requests:
+    requests:
         cpu: "200m"
         memory: "256Mi"
         ephemeral-storage: "128Mi"
-      limits:
+    limits:
         cpu: "500m"
         memory: "512Mi"
         ephemeral-storage: "256Mi"
-  - name: jnlp
-    image: jenkins/inbound-agent:3283.v92c105e0f819   # or the default your controller uses
-    resources:
-      requests:
-        cpu: "100m"
-        memory: "256Mi"
-        ephemeral-storage: "256Mi"
-      limits:
-        ephemeral-storage: "512Mi"
-"""
+    """
+        }
     }
-  }
 
   environment {
     PROJECT = 'spectra-kube'
@@ -131,24 +122,24 @@ spec:
     }
 
     stage('Build frontend (Kaniko)') {
-      when { anyOf { branch 'dev'; branch 'uat'; branch 'main' } }
-      steps {
-        container('kaniko') {
-          sh '''
-            /kaniko/executor \
-                --verbosity=info \
-                --context=dir://${WORKSPACE}/backend \
-                --dockerfile=${WORKSPACE}/backend/Dockerfile \
-                --destination=${BACK_IMG} \
+        when { anyOf { branch 'dev'; branch 'uat'; branch 'main' } }
+        steps {
+            container('kaniko') {
+            sh '''
+                /kaniko/executor \
+                --verbosity=debug \
+                --context=dir://${WORKSPACE}/frontend \
+                --dockerfile=${WORKSPACE}/frontend/Dockerfile \
+                --destination=${FRONT_IMG} \
                 --cache=true \
                 --cache-ttl=168h \
                 --snapshot-mode=time \
                 --single-snapshot \
                 --use-new-run \
                 --build-arg=COMMIT_SHA=${GIT_COMMIT}
-          '''
+            '''
+            }
         }
-      }
     }
 
     stage('Pin images in Kustomize') {
