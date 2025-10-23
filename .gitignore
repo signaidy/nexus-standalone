@@ -30,8 +30,8 @@ Thumbs.db
 docker-compose*.yaml
 compose.yml
 
-# K8s – keep secrets local
-k8s/overlays/*/secrets.env
+# # K8s – keep secrets local
+# k8s/overlays/*/secrets.env
 
 # Misc
 *.jar

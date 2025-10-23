@@ -1,0 +1,74 @@
+graph LR
+  %% Actores externos
+  U[Usuarios / Navegador]:::ext
+  GH[GitHub<br/>Repos &amp; PRs]:::ext
+  AR[(Artifact Registry)]:::gcp
+  SONAR[(VM SonarQube<br/>Docker Compose)]:::gcp
+
+  %% Borde de GKE
+  subgraph GKE [GKE Autopilot - cluster spectra-autopilot]
+    direction TB
+
+    %% Ingress / LB
+    GCLB[HTTPS Load Balancer<br/>+ Ingress/NEG]:::net
+
+    %% Namespaces de runtime
+    subgraph NS_MAIN [main]
+      direction TB
+      MFE[frontend]:::fe --> MBE[backend]:::be
+    end
+
+    subgraph NS_UAT [uat]
+      direction TB
+      UFE[frontend]:::fe --> UBE[backend]:::be
+    end
+
+    subgraph NS_DEV [dev]
+      direction TB
+      DFE[frontend]:::fe --> DBE[backend]:::be
+    end
+
+    %% Base de datos central
+    subgraph NS_DB [db]
+      ORA[(Oracle XE<br/>StatefulSet + PVC)]:::db
+    end
+
+    %% Namespace de CI
+    subgraph NS_CI [ci]
+      DRONE[Drone Server]:::ci
+      DRONER[Drone Runner]:::ci
+      DRONE -- RPC --> DRONER
+    end
+  end
+
+  %% Flujo de tráfico de usuarios
+  U -->|HTTP/HTTPS| GCLB
+  GCLB -->|Rutas / Hostnames| DFE
+  GCLB -->|Rutas / Hostnames| UFE
+  GCLB -->|Rutas / Hostnames| MFE
+
+  %% App internamente
+  DFE --> DBE -->|JDBC| ORA
+  UFE --> UBE -->|JDBC| ORA
+  MFE --> MBE -->|JDBC| ORA
+
+  %% CI/CD
+  GH -->|Webhooks / PR| DRONE
+  DRONER -->|Build &amp; Push| AR
+  AR -->|Pull images| DBE
+  AR -->|Pull images| UBE
+  AR -->|Pull images| MBE
+  AR -->|Pull images| DFE
+  AR -->|Pull images| UFE
+  AR -->|Pull images| MFE
+
+  %% Calidad
+  DRONER -->|Análisis Sonar backend/frontend| SONAR
+
+  classDef ext fill:#f6f6f6,stroke:#999,stroke-width:1px;
+  classDef gcp fill:#f0f9ff,stroke:#3b82f6,stroke-width:1px;
+  classDef net fill:#ecfdf5,stroke:#10b981,stroke-width:1px;
+  classDef fe fill:#fff7ed,stroke:#fb923c,stroke-width:1px;
+  classDef be fill:#fef2f2,stroke:#ef4444,stroke-width:1px;
+  classDef db fill:#f5f3ff,stroke:#8b5cf6,stroke-width:1px;
+  classDef ci fill:#eef2ff,stroke:#6366f1,stroke-width:1px;

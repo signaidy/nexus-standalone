@@ -1,0 +1,7 @@
+graph TB
+  subgraph Hotelería NodeJs
+    CH[Controllers] --> SH[Services]
+    SH --> V[Validations / Pricing]
+    SH --> PH[Persistence]
+    PH --> DBH[(Oracle Schema: HOTEL)]
+  end

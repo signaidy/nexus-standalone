@@ -333,7 +333,7 @@ Autopilot can’t be “stopped”, but you can drop runtime cost to near-zero b
 **PowerShell**
 
 ```powershell
-$namespaces = @('dev','uat','main','db','ci')
+$namespaces = @('dev','uat','main','db','ci','monitoring')
 
 # Pause
 foreach ($ns in $namespaces) {

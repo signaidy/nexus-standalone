@@ -1,0 +1,6 @@
+graph LR
+  GH[GitHub] --> DR[Drone]
+  DR --> SON[SonarQube]
+  DR --> AR[(Artifact Registry)]
+  DR --> K8s[(GKE Autopilot)]
+  AR -->|pull| K8s

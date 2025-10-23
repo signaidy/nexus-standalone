@@ -1,0 +1,11 @@
+graph LR
+  subgraph Namespace dev/uat/main
+    FE[Deployment frontend] --> SFE[Service]
+    BEA[Deployment agencia] --> SBA[Service]
+    BEH[Deployment hoteleria] --> SBH[Service]
+    BEV[Deployment aerolinea] --> SBV[Service]
+  end
+  ING[Ingress / GCLB] --> SFE
+  BEA -->|JDBC| ORA[(Service oracle.db)]
+  BEH -->|JDBC| ORA
+  BEV -->|JDBC| ORA

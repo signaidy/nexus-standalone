@@ -1,0 +1,30 @@
+flowchart TB
+  A[Trigger: push/PR] --> B[Checkout + Metadata]
+  B --> C[Resolver estrategia de build
+  - Kaniko in-cluster
+  - Cloud Build GCB]
+  C --> D[Build backend]
+  C --> E[Build frontend]
+  D --> F[Unit tests + Coverage]
+  F --> G[Sonar analysis backend
+  - sonar.qualitygate.wait=true]
+  E --> H[Sonar analysis frontend
+  IF New Code]
+  G --> I{Quality Gate OK?}
+  H --> I
+  I -->|No| X[Fail + Notificar]
+  I -->|Sí| J[Tag y push imágenes
+  - :manual-YYYYMMDD-HHMMSS
+  - mover alias :dev/:uat/:main]
+  J --> K[Pin de imágenes en overlay
+  - kustomize edit set image
+  si aplica]
+  K --> L[Aplicar manifests
+  - kubectl apply -k overlays/<env>]
+  L --> M[Rollout status
+  - backend
+  - frontend]
+  M --> N[Smoke tests
+  - /nexus/healthz
+  - curl desde Pod]
+  N --> O[Notificar resultado]

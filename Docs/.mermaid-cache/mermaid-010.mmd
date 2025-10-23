@@ -1,0 +1,27 @@
+sequenceDiagram
+  participant UI
+  participant BFF
+  participant BO as Booking Orchestrator
+  participant Air as Airline Connector
+  participant Hot as Hotel Connector
+  participant DB as Oracle
+  participant MQ as Event Bus
+
+  UI->>BFF: POST /booking {flight, hotel}
+  BFF->>BO: createBooking(requestId)
+  BO->>DB: save(saga=STARTED)
+  par Paralelo
+    BO->>Air: reserveFlight()
+    BO->>Hot: reserveHotel()
+  end
+  alt ambos OK
+    BO->>DB: update(saga=CONFIRMED)
+    BO->>MQ: publish booking.confirmed
+    BFF-->>UI: 200 CONFIRMED
+  else uno falla
+    BO->>Air: cancelFlight() (si aplicó)
+    BO->>Hot: cancelHotel() (si aplicó)
+    BO->>DB: update(saga=COMPENSATED)
+    BO->>MQ: publish booking.compensated
+    BFF-->>UI: 409 COMPENSATED
+  end
