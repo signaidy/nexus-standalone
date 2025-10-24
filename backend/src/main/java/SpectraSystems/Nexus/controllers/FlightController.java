@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/flights")
+@RequestMapping("/nexus/flights")
 public class FlightController {
 
     private final FlightService flightService;
@@ -133,9 +133,7 @@ public class FlightController {
         // Get return flights (reverse origin and destination)
         List<externalFlight> returnFlights = flightService.getOneWayFlightsFromOtherBackend(
                 destinationCityId, originCityId, returnDay, passengers);
-        if (true) {
-            return new ResponseEntity<>(outboundFlights, HttpStatus.OK);
-        }
+
         
 
         // Add return flights to each outbound flight
@@ -178,6 +176,9 @@ public class FlightController {
     public ResponseEntity<List<City>> getAllCitiesFromOtherBackend() {
         
         List<City> cities = flightService.getAllCitiesFromOtherBackend();
+        if(true){
+            cities = flightService.getAllCitiesFromOtherBackend();
+        }
         return new ResponseEntity<>(cities, HttpStatus.OK);
     }
 
@@ -325,7 +326,7 @@ public class FlightController {
                 String userEmail = user.getEmail();    
                 // Create MimeMessage
                 MimeMessage message = emailSender.createMimeMessage();
-                if ("flight".equals(Type)) {
+                if (Type == "flight") {
                     MimeMessageHelper helper = new MimeMessageHelper(message, true);
                     helper.setTo(userEmail);
                     helper.setSubject("Flight Reservation Cancellation");
