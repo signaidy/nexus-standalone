@@ -134,7 +134,10 @@ public class FlightController {
         List<externalFlight> returnFlights = flightService.getOneWayFlightsFromOtherBackend(
                 destinationCityId, originCityId, returnDay, passengers);
 
-        
+        if(true){ // Temporary fix to avoid server errors while testing frontend
+            return new ResponseEntity<>(outboundFlights, HttpStatus.OK);
+        }
+                
 
         // Add return flights to each outbound flight
         for (externalFlight outboundFlight : outboundFlights) {
