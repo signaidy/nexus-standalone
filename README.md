@@ -333,13 +333,14 @@ Autopilot can’t be “stopped”, but you can drop runtime cost to near-zero b
 **PowerShell**
 
 ```powershell
-$namespaces = @('dev','uat','main','db','ci','monitoring')
+$namespaces = @('dev','uat','main','db','ci','monitoring', 'observability')
 
 # Pause
 foreach ($ns in $namespaces) {
   kubectl -n $ns scale deploy --all --replicas=0 2>$null
   kubectl -n $ns scale statefulset --all --replicas=0 2>$null
   kubectl -n $ns patch cronjob --all --type merge -p '{\"spec\":{\"suspend\":true}}' 2>$null
+  kubectl -n $ns scale pod --all --replicas=0 2>$null
 }
 
 # Resume
