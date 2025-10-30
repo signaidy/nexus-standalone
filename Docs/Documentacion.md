@@ -516,7 +516,15 @@ flowchart TD
 **1B. Patrón:** **Microservicios** con **API Gateway**/**BFF**, **servicio de agregación** (agency), **conectores** por proveedor (adapters), **servicio de reservas** (saga orchestrator), **cache** (catálogo/disponibilidad), **auth** independiente, **Oracle** como sistema de registro; **RabbitMQ/Kafka** (o GCP Pub/Sub) para outbox/eventos de saga.
 **Tácticas:** circuit breaker/bulkhead, caching, paralelismo, idempotencia, colas, retries con backoff, RBAC/JWT, observabilidad.
 
-**1C. Módulos (vista lógica)**
+**1C. Decisiones:**
+1. Arquitectura basada en **bounded contexts** por dominio (hotel, airline, agency).  
+2. Uso de **Resilience4j** para CB y reintentos con backoff exponencial.  
+3. **Cache local (Caffeine)** y **Redis** distribuido para búsquedas frecuentes.  
+4. **Outbox pattern** + **event bus (Kafka/PubSub)** para consistencia eventual.  
+5. **Oracle** como fuente de verdad con schemas independientes.  
+6. **OpenTelemetry** y **Micrometer** para observabilidad unificada.  
+
+**1D. Módulos (vista lógica)**
 
 * **API Gateway/BFF**: routing, rate limiting, CORS, adaptación a frontend.
 * **Agency Aggregator**: orquesta búsquedas paralelas a conectores; aplica caché.
@@ -528,7 +536,7 @@ flowchart TD
 * **Observability**: lib/sidecar para métricas y trazas.
 * **Oracle**: esquema particionado por dominio (booking, catalogs, users).
 
-**1D. Interfaces (borrador)**
+**1F. Interfaces (borrador)**
 
 * **Gateway → Agency**: REST `/search?city=...&dates=...`
 * **Agency → Connector***: REST/gRPC `/availability` (contrato unificado); timeouts (≤ 300 ms)
@@ -536,7 +544,7 @@ flowchart TD
 * **Orchestrator → Events**: Producer `booking.events` (outbox)
 * **Services → Oracle**: JDBC; transacciones locales + consistencia eventual via saga
 
-**1E. Verificación (contra escenarios)**
+**1G. Verificación (contra escenarios)**
 A1: paralelismo + cache + timeouts;
 A2: CB/bulkhead;
 A3: saga + outbox/idempotencia;
@@ -589,10 +597,12 @@ graph LR
 **2A. Impulsores:** A1 (latencia), A2 (resiliencia), A4 (escala), A6 (observabilidad).
 **2B. Decisiones:**
 
-* **Contratos unificados** (DTOs) y **mappers** por proveedor.
-* **Fan‑out** con **timeouts** por proveedor (p.ej. 250–300 ms) y **límites de concurrencia** por dominio (bulkhead).
-* **Cache TTL** (p.ej. 30–90 s) por destino/fecha; **cache stampede** prevenido con jitter y locking ligero.
-* **Fallback**: marcar proveedor como **degradado** si CB abierto.
+1. **Contratos unificados (DTOs)** y **mappers** por proveedor.
+2. **Fan-out paralelo** con **timeouts ≤ 300 ms** y **límites de concurrencia** por dominio (bulkhead).
+3. **Cache TTL 30–90 s** por destino/fecha; se previene **cache stampede** con jitter y lock.
+4. **Fallback**: degradar proveedor con CB abierto y mantener SLA global.
+5. **Provider policy module**: priorización y cuotas dinámicas.
+6. **Tracing por proveedor** (OpenTelemetry spans) y logging contextual.
 
 **2C. Instalar módulos:** `availability-service`, `catalog-service`, `connector-*`, `cache-lib`, `provider-policy` (prioridades, cuotas).
 
@@ -610,9 +620,11 @@ graph LR
 **3A. Impulsores:** A3 (consistencia), A5 (seguridad), A6 (observabilidad).
 **3B. Decisiones:**
 
-* **Saga orquestada**: pasos `reserveFlight`, `reserveHotel`; compensaciones `cancelFlight`, `cancelHotel`.
-* **Outbox pattern** + **event bus** para garantizar entrega.
-* **Idempotencia** por `requestId`; registro de **estado de saga** en Oracle.
+1. **Saga orquestada** (reserveFlight, reserveHotel + compensaciones cancelFlight/cancelHotel).
+2. **Outbox + event bus** para asegurar entrega at-least-once.
+3. **Idempotencia** por `requestId`; registro del estado de saga en Oracle.
+4. **Autenticación JWT** por scope y trazabilidad con `traceId`.
+5. **Auditoría** de operaciones de reserva y compensación.
 
 **3C. Instalar módulos:** `booking-orchestrator`, `saga-store`, `payment-gateway` (opcional), `idempotency-filter`.
 
@@ -661,10 +673,12 @@ sequenceDiagram
 **4A. Impulsores:** A1–A6.
 **4B. Decisiones:**
 
-* **Security**: JWT con scopes (`read:availability`, `write:booking`), **rate limiting** NGINX/Envoy en Gateway; secretos en **K8s Secrets**; **mTLS** interno (opcional).
-* **Escalado**: **HPA** por CPU y/o RPS; **PodDisruptionBudget**; **readiness** y **liveness** probes.
-* **Observabilidad**: OpenTelemetry SDK; métricas (p95, error rate, CB state, RPS) expuestas a Prometheus/GCM; logs con `traceId`.
-* **Config**: `ConfigMap` para timeouts, políticas de proveedor; **Feature Flags** (degradación).
+1. **JWT + RBAC + rate limiting NGINX/Envoy** en Gateway.
+2. **HPA** por CPU/RPS; `PodDisruptionBudget`; probes de readiness/liveness.
+3. **OpenTelemetry SDK** y **Micrometer** para métricas (`p95`, `error_rate`, `CB_state`).
+4. **ConfigMap** para políticas/tiempos y **Feature Flags** para degradación controlada.
+5. **Secrets** en K8s con rotación gestionada por el pipeline.
+6. **CORS seguro** y **mTLS interno** opcional entre namespaces.
 
 **4C. Interfaces actualizadas**: cabeceras `x-request-id`, `x-trace-id`; endpoints `/metrics` y `/health`.
 
@@ -685,7 +699,15 @@ sequenceDiagram
 
 **P1A. Impulsores:** P1 (quality gate), P2 (rollback), P3 (promoción).
 **P1B. Patrón:** **Pipeline declarativo** en **Drone** (o GHA) con stages: *checkout → build → test/sonar → publish → deploy → verify*, usando **Artifact Registry** + **Kustomize overlays**.
-**P1C. Módulos:**
+**P1C. Decisiones:**
+
+1. **Pipeline declarativo Drone/GHA** con etapas `checkout→build→test→sonar→publish→deploy→verify`.
+2. **Kaniko/GCB** para builds reproducibles sin daemon.
+3. **Artifact Registry** como repositorio inmutable de imágenes.
+4. **Kustomize overlays** por entorno (`dev`, `uat`, `main`).
+5. **Quality gate automático** previo al merge.
+
+**P1D. Módulos:**
 
 * **SCM Webhook** (GitHub → Drone Server)
 * **Runner** (Kubernetes)
@@ -695,14 +717,14 @@ sequenceDiagram
 * **Deployer** (kubectl + Kustomize)
 * **Verifier** (smoke + rollout status)
 
-**P1D. Interfaces:**
+**P1F. Interfaces:**
 
 * Webhook GitHub → `/hook` en Drone;
 * Sonar: `SONAR_HOST_URL` + token;
 * Artifact Registry: push/pull con SA;
 * K8s: `kubectl apply -k overlays/<env>`.
 
-**P1E. Verificación:** P1: gate bloquea merge; P2: rollback por alias; P3: retag promoción.
+**P1G. Verificación:** P1: gate bloquea merge; P2: rollback por alias; P3: retag promoción.
 
 ---
 
@@ -711,9 +733,11 @@ sequenceDiagram
 **P2A. Impulsores:** P1, P2.
 **P2B. Decisiones:**
 
-* **Sonar New Code**: gate aplicado a *código nuevo* (evita deuda histórica en frontend).
-* **Despliegue progresivo**: `maxUnavailable=0`, `maxSurge=1` (rolling), readiness estricta; verificación `/nexus/healthz` y `curl` in‑cluster.
-* **Rollback**: comando estándar para **mover alias** `:dev/:uat/:main` al último tag bueno + `kustomize edit set image` (consistencia del overlay).
+1. **Sonar "New Code" policy**: evita regresión sin exigir deuda 0.
+2. **Rolling update controlado** (`maxUnavailable=0`, `maxSurge=1`), readiness y smoke tests.
+3. **Rollback automatizado** moviendo alias `:dev/:uat/:main` al último tag estable.
+4. **Verificación post-deploy** (`/nexus/healthz`, `curl` in-cluster).
+5. **Notificación** automática en Slack/Email.
 
 **P2C. Instalar módulos:** `quality-policy`, `deploy-policy`, `rollback-script` (script único para retag y apply).
 
@@ -731,9 +755,11 @@ sequenceDiagram
 **P3A. Impulsores:** P3 (promoción controlada), P2 (trazabilidad).
 **P3B. Decisiones:**
 
-* **Promoción sin rebuild**: mover alias de **misma imagen** verificada en UAT.
-* **Auditoría**: registrar `image:tag`, `commit SHA`, fecha y aprobador.
-* **Gates manuales** en `uat` (aprobación) y automáticos en `dev`.
+1. **Promoción sin rebuild** mediante retag de la misma imagen.
+2. **Auditoría JSON** con tag, SHA, fecha y aprobador.
+3. **Gates manuales** en `uat` y automáticos en `dev`.
+4. **Release notes automáticos** del rango de commits.
+5. **Trazabilidad completa** (commit → imagen → entorno).
 
 **P3C. Instalar módulos:** `promotion-job` (Drone/GHA manual), `release-notes` (generación de changelog corto del rango de commits), `audit-log` (persistencia simple).
 

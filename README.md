@@ -356,6 +356,11 @@ kubectl -n $NS rollout restart deploy/backend
 kubectl -n $NS rollout restart deploy/frontend
 ```
 
+**Fordward Jenkins ot access**
+```bash
+  kubectl -n ci port-forward svc/jenkins 8080:8080
+```
+
 **Bash**
 
 ```bash
