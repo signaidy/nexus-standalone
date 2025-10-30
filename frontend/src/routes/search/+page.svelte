@@ -20,7 +20,7 @@
       {/each}
     {:then flights}
       {#if flights.length === 0}
-        <div class="self-start font-bold font-lg mt-5 my-3 bg-background p-3 rounded-lg">No flights found for specified cities on {$page.url.searchParams.get("departureDay")} for {$page.url.searchParams.get("passengers")} passengers</div>
+        <div class="self-start font-bold font-lg mt-5 my-3 bg-background p-3 rounded-lg">No flights found for specified cities on {$page.url.searchParams.get("departureDay")} for {$page.url.searchParams.get("passengers")} passengers!</div>
       {:else}
         <div class="self-start font-bold font-lg mt-5 my-3 bg-background p-3 rounded-lg">Results for flights from {flights[0].originCityName} to {flights[0].destinationCityName} on {$page.url.searchParams.get("departureDay")} for {$page.url.searchParams.get("passengers")} passengers</div>
       {/if}
